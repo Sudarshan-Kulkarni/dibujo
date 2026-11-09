@@ -122,7 +122,7 @@ Rules:
 
 ### Journal date
 
-`journalDate(now, dayStartHour) = localDate(now − dayStartHour hours)`. With `dayStartHour: 4`, an entry at 01:30 on the 10th belongs to the 9th. `--date YYYY-MM-DD` overrides it and must be a real calendar date.
+`journalDate(now, dayStartHour)` is the local calendar date of `now`, or the day before it when the wall-clock hour is earlier than `dayStartHour`. With `dayStartHour: 4`, an entry at 01:30 on the 10th belongs to the 9th. The check uses the wall-clock hour instead of subtracting a duration, so DST changes never move the boundary. `--date YYYY-MM-DD` overrides it and must be a real calendar date.
 
 ## CLI
 
