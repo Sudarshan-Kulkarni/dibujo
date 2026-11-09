@@ -2,7 +2,7 @@
 
 ## Runtime and language
 
-- **TypeScript** on **Node.js**, with ESM modules only (`"type": "module"`). Support Node `>=22` (set `engines.node` in `package.json`).
+- **TypeScript** on **Node.js**, with ESM modules only (`"type": "module"`). Support Node `>=22.12` (set `engines.node` in `package.json`; `commander` and `vitest` need 22.12).
 - **npm** as the package manager.
 - `tsconfig` uses `strict: true`, `module` / `moduleResolution: "NodeNext"`, and `outDir: "dist"`. Relative imports use `.js` extensions (`import { x } from "./parse.js"`), as NodeNext requires.
 - Don't use `any`; prefer `unknown` and narrow it.
@@ -33,9 +33,10 @@ Add new dependencies only when they are clearly needed, and prefer these:
 | Frontmatter parsing | `yaml` (never `gray-matter`: its JavaScript engine runs `eval` on `---js` frontmatter) |
 | Validation of config, frontmatter, and CLI input | `zod` |
 | Dates (daily, monthly, and future log keys) | `date-fns` |
+| Version comparison (skill installs) | `semver` |
 | Notifications (when decided) | Discord webhook via `fetch`; `discord.js` only if a two-way bot is needed |
-| Tests (dev) | `vitest` |
-| Lint and format (dev) | `biome` |
+| Tests (dev) | `vitest`, plus `vite` (a peer dependency npm doesn't install automatically) |
+| Lint and format (dev) | `biome`. Markdown files are excluded in `biome.json`, because its formatter reflows tables and lists in specs, steering, and skills. |
 | Dev runner (dev) | `tsx` |
 
 ## Commands
@@ -57,7 +58,7 @@ Add new dependencies only when they are clearly needed, and prefer these:
 - Create the config file with `0600` permissions, because it can hold webhook URLs or tokens.
 - Never hardcode vault paths. Never put secrets in the repo, the package, or logs.
 - Never log full journal content. Log note paths and counts instead.
-- For development in this repo, a gitignored `.env` (loaded via `--env-file` in the `dev` script) can set the same variables. Keep `.env.example` up to date with placeholder values.
+- For development in this repo, a gitignored `.env` (loaded via `--env-file-if-exists` in the `dev` script) can set the same variables. Set `XDG_CONFIG_HOME` there to keep development away from your real config. Keep `.env.example` up to date with placeholder values.
 
 ## Engineering rules
 
@@ -72,6 +73,8 @@ Add new dependencies only when they are clearly needed, and prefer these:
 ## Git
 
 Commit messages use the format `<verb>: <description>`. The verb is lowercase and imperative. The description is short and lowercase, with no trailing period.
+
+Commit after a large group of tasks, not after each one, and ask the user before committing or pushing.
 
 Examples:
 - `add: spec files and scaffold repo`

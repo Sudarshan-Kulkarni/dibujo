@@ -270,7 +270,7 @@ The package ships `skills/<name>/SKILL.md` plus any other files in that folder. 
 
 1. Copies the skill folder to `<target>/<name>/`.
 2. Copies `docs/vault-format.md` to `<target>/<name>/references/vault-format.md`, so each installed skill is self-contained. The skill's `SKILL.md` links to `references/vault-format.md`.
-3. Writes `<target>/<name>/.dibujo.json`: `{ "package": "digi-bujo", "version": "<pkg version>", "skill": "<name>" }`.
+3. Writes `<target>/<name>/.dibujo.json`: `{ "package": "digi-bujo", "version": "<pkg version>", "skill": "<name>", "hash": "<content hash>" }`. The hash covers every file in the skill folder plus the format reference, so a skill edited during development is updated even though the package version hasn't changed.
 
 The package root is found by walking up from `import.meta.url` to the nearest `package.json` named `digi-bujo`. This works from both `dist/` and `src/` (tsx).
 
@@ -279,7 +279,8 @@ The package root is found by walking up from `import.meta.url` to the nearest `p
 | Destination state | Result |
 | --- | --- |
 | Missing | `installed` |
-| Has `.dibujo.json` with the same version | `unchanged` |
+| Has `.dibujo.json` with the same version and hash | `unchanged` |
+| Has `.dibujo.json` with the same version and a different (or missing) hash | `updated` (reason: contents changed) |
 | Has `.dibujo.json` with an older version | `updated` |
 | Has `.dibujo.json` with a newer version | `skipped` (reason: newer version installed). `--force` replaces it. |
 | Exists without `.dibujo.json` | `skipped` (reason: not installed by dibujo). `--force` replaces it. |
