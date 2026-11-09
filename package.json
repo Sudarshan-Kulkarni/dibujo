@@ -1,0 +1,52 @@
+{
+  "name": "digi-bujo",
+  "version": "0.1.0",
+  "description": "A digital companion to your Bullet Journal: agent skills and a CLI that log to an Obsidian vault.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sudarshan-Kulkarni/dibujo.git"
+  },
+  "keywords": [
+    "bullet-journal",
+    "bujo",
+    "obsidian",
+    "agent-skills",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "bin": {
+    "dibujo": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "docs"
+  ],
+  "scripts": {
+    "dev": "tsx --env-file-if-exists=.env src/cli/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest --run",
+    "check": "biome check . && tsc --noEmit",
+    "format": "biome check --write .",
+    "prepublishOnly": "npm run check && npm test && npm run build"
+  },
+  "dependencies": {
+    "commander": "^15.1.0",
+    "date-fns": "^4.4.0",
+    "gray-matter": "^4.0.3",
+    "semver": "^7.8.6",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6",
+    "@types/node": "^22.20.5",
+    "@types/semver": "^7.8.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
