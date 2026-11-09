@@ -30,7 +30,7 @@ Add new dependencies only when they are clearly needed, and prefer these:
 | Purpose | Library |
 | --- | --- |
 | CLI commands and args | `commander` |
-| Frontmatter parsing and writing | `gray-matter` |
+| Frontmatter parsing | `yaml` (never `gray-matter`: its JavaScript engine runs `eval` on `---js` frontmatter) |
 | Validation of config, frontmatter, and CLI input | `zod` |
 | Dates (daily, monthly, and future log keys) | `date-fns` |
 | Notifications (when decided) | Discord webhook via `fetch`; `discord.js` only if a two-way bot is needed |

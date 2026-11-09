@@ -352,7 +352,7 @@ src/
 └── errors.ts              # DibujoError, codes, exit-code mapping
 ```
 
-Dependencies point one way: `cli` → `vault` / `skills` / `config` → `bujo`. The `bujo/` modules import only `zod` and `node:crypto`.
+Dependencies point one way: `cli` → `vault` / `skills` / `config` → `bujo`. The `bujo/` modules import only `zod`, `yaml`, `date-fns`, and `node:crypto`. None of them touch the filesystem or network.
 
 ## Package setup
 
@@ -360,7 +360,7 @@ Dependencies point one way: `cli` → `vault` / `skills` / `config` → `bujo`. 
   - `"name": "digi-bujo"`, `"type": "module"`, `"engines": { "node": ">=22" }`
   - `"bin": { "dibujo": "./dist/cli/index.js" }`
   - `"files": ["dist", "skills", "docs"]`
-- Runtime dependencies: `commander`, `zod`, `gray-matter` (frontmatter reading), `date-fns`, `semver`.
+- Runtime dependencies: `commander`, `zod`, `yaml` (frontmatter reading), `date-fns`, `semver`. `gray-matter` was dropped because its JavaScript engine runs `eval` on `---js` frontmatter, and vault notes are user-editable.
 - Dev dependencies: `typescript`, `tsx`, `vitest`, `@biomejs/biome`, `@types/node`, `@types/semver`.
 - Scripts:
   - `dev`: `tsx --env-file-if-exists=.env src/cli/index.ts`
