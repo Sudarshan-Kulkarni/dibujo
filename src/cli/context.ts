@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { createInterface } from "node:readline/promises";
 
 export interface Writable {
   write(chunk: string): unknown;
@@ -11,9 +12,11 @@ export interface Writable {
 export interface Ctx {
   env: Readonly<Record<string, string | undefined>>;
   now: () => Date;
+  cwd: string;
   /** Reads all of stdin as a string. */
   readStdin: () => Promise<string>;
-  stdin: NodeJS.ReadableStream;
+  /** Asks one question on the terminal and returns the answer. Only call when `interactive`. */
+  ask: (question: string) => Promise<string>;
   stdout: Writable;
   stderr: Writable;
   /** True when stdin is a terminal. */
@@ -28,6 +31,7 @@ export function processCtx(): Ctx {
   return {
     env: process.env,
     now: () => new Date(),
+    cwd: process.cwd(),
     readStdin: async () => {
       const chunks: Buffer[] = [];
       for await (const chunk of process.stdin) {
@@ -35,7 +39,14 @@ export function processCtx(): Ctx {
       }
       return Buffer.concat(chunks).toString("utf8");
     },
-    stdin: process.stdin,
+    ask: async (question) => {
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        return await rl.question(question);
+      } finally {
+        rl.close();
+      }
+    },
     stdout: process.stdout,
     stderr: process.stderr,
     stdinIsTTY,
