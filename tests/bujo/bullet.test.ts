@@ -238,7 +238,57 @@ describe("formatBullet: trailing fields", () => {
   });
 });
 
+describe("origin links", () => {
+  const daily = { date: "2026-11-08", blockId: "k3f9a1" };
+  const future = { year: "2026", blockId: "m4n5p6" };
+
+  it.each<[string, string, Bullet["origin"], string | undefined]>([
+    ["daily, full path, alias", "[[Bujo/Daily/2026-11-08#^k3f9a1|from 2026-11-08]]", daily, "Bujo"],
+    ["daily, basename, alias", "[[2026-11-08#^k3f9a1|from 2026-11-08]]", daily, undefined],
+    ["daily, basename, no alias", "[[2026-11-08#^k3f9a1]]", daily, undefined],
+    ["daily, full path, no alias", "[[Bujo/Daily/2026-11-08#^k3f9a1]]", daily, "Bujo"],
+    [
+      "future, full path, alias",
+      "[[Bujo/Future/2026#^m4n5p6|from future log 2026]]",
+      future,
+      "Bujo",
+    ],
+    ["future, basename, alias", "[[2026#^m4n5p6|from future log 2026]]", future, undefined],
+    ["future, basename, no alias", "[[2026#^m4n5p6]]", future, undefined],
+    ["future, full path, no alias", "[[Bujo/Future/2026#^m4n5p6]]", future, "Bujo"],
+  ])("reads %s", (_name, link, origin, folder) => {
+    expect(parseBulletLine(`- [ ] call ${link}`)).toEqual(task("open", "call", { origin }));
+    // Writing uses the canonical alias, so only linked forms with an alias match exactly.
+    if (link.includes("|") && origin) {
+      expect(formatBullet(task("open", "call", { origin }), folder ? { folder } : {})).toBe(
+        `- [ ] call ${link}`,
+      );
+    }
+  });
+
+  it.each([
+    "[[Books/2026#^abc]]",
+    "[[Bujo/Daily/2026#^abc]]",
+    "[[Bujo/Future/2026-11-08#^abc]]",
+    "[[Books/2026-11-08#^abc]]",
+  ])("keeps %s in the text", (link) => {
+    expect(parseBulletLine(`- [ ] read ${link}`)).toEqual(task("open", `read ${link}`));
+  });
+});
+
 describe("fingerprint", () => {
+  it("gives a task with a daily origin the same value as before future origins existed", () => {
+    // Computed with the code before this change. Changing it would break every saved ref.
+    const pinned = task("open", "call the bank", {
+      signifiers: ["priority"],
+      origin: { date: "2026-11-08", blockId: "k3f9a1" },
+    });
+    expect(fingerprint(pinned)).toBe("bf760f4f");
+    expect(fingerprint({ ...pinned, origin: { year: "2026", blockId: "k3f9a1" } })).not.toBe(
+      "bf760f4f",
+    );
+  });
+
   const base = task("open", "call the bank", { signifiers: ["priority"] });
 
   it("ignores state, scheduled date, and block id", () => {

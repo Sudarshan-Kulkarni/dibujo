@@ -4,6 +4,7 @@ import {
   BULLET_TYPES,
   type Bullet,
   MAX_WRITE_DEPTH,
+  type Origin,
   SIGNIFIERS,
   TASK_STATES,
 } from "../../src/bujo/types.js";
@@ -49,6 +50,14 @@ export const isoDate: fc.Arbitrary<string> = fc
 
 export const blockId: fc.Arbitrary<string> = fc.stringMatching(/^[A-Za-z0-9-]{1,8}$/);
 
+export const isoYear: fc.Arbitrary<string> = fc.integer({ min: 2000, max: 2099 }).map(String);
+
+/** An origin link target: a daily note or a future log note. */
+export const origin: fc.Arbitrary<Origin> = fc.oneof(
+  fc.record({ date: isoDate, blockId }),
+  fc.record({ year: isoYear, blockId }),
+);
+
 export const signifiers = fc.subarray([...SIGNIFIERS]);
 
 /** A bullet that dibujo could write, including the fields added by migration and scheduling. */
@@ -59,7 +68,7 @@ export const bullet: fc.Arbitrary<Bullet> = fc
     text: bulletText,
     signifiers,
     depth: fc.integer({ min: 0, max: MAX_WRITE_DEPTH }),
-    origin: fc.option(fc.record({ date: isoDate, blockId }), { nil: undefined }),
+    origin: fc.option(origin, { nil: undefined }),
     scheduled: fc.option(isoDate, { nil: undefined }),
     blockId: fc.option(blockId, { nil: undefined }),
   })

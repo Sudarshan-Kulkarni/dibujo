@@ -30,7 +30,7 @@ const TRAILING_SIGNIFIER = /\s+#(priority|inspiration)$/i;
 const TRAILING_BLOCK_ID = /\s+\^([A-Za-z0-9-]+)$/;
 const TRAILING_SCHEDULED = /\s+⏳\uFE0F?\s*(\d{4}-\d{2}-\d{2})$/;
 const TRAILING_ORIGIN =
-  /\s+\[\[([^[\]|#]*?)(\d{4}-\d{2}-\d{2})#\^([A-Za-z0-9-]+)(?:\|[^[\]]*)?\]\]$/;
+  /\s+\[\[([^[\]|#]*?)(\d{4}-\d{2}-\d{2}|\d{4})#\^([A-Za-z0-9-]+)(?:\|[^[\]]*)?\]\]$/;
 
 /** Columns per nesting level. A tab counts as one full level. */
 const INDENT_WIDTH = 4;
@@ -91,10 +91,17 @@ export function formatBullet(bullet: Bullet, options: FormatOptions = {}): strin
   return `${indent}${marker}${bullet.text}${origin}${tags}${scheduled}${blockId}`;
 }
 
-/** `[[<folder>/Daily/<date>#^<id>|from <date>]]`, or without the folder path. */
+/**
+ * `[[<folder>/Daily/<date>#^<id>|from <date>]]` for a daily origin and
+ * `[[<folder>/Future/<year>#^<id>|from future log <year>]]` for a future one.
+ * Without a folder, only the note's file name is used.
+ */
 export function formatOriginLink(origin: Origin, folder?: string): string {
-  const prefix = folder ? `${folder.replace(/\\/g, "/").replace(/\/+$/, "")}/Daily/` : "";
-  return `[[${prefix}${origin.date}#^${origin.blockId}|from ${origin.date}]]`;
+  const root = folder ? `${folder.replace(/\\/g, "/").replace(/\/+$/, "")}/` : "";
+  if ("date" in origin) {
+    return `[[${root}${folder ? "Daily/" : ""}${origin.date}#^${origin.blockId}|from ${origin.date}]]`;
+  }
+  return `[[${root}${folder ? "Future/" : ""}${origin.year}#^${origin.blockId}|from future log ${origin.year}]]`;
 }
 
 /** The checkbox character written for a task state. */
@@ -113,9 +120,16 @@ export function fingerprint(bullet: Bullet): string {
     depth: bullet.depth,
     text: bullet.text,
     signifiers: [...bullet.signifiers],
-    origin: bullet.origin ? { date: bullet.origin.date, blockId: bullet.origin.blockId } : null,
+    origin: bullet.origin ? identityOf(bullet.origin) : null,
   };
   return createHash("sha256").update(JSON.stringify(identity)).digest("hex").slice(0, 8);
+}
+
+/** The origin fields that count towards a fingerprint. A daily origin keeps its original shape. */
+function identityOf(origin: Origin): Origin {
+  return "date" in origin
+    ? { date: origin.date, blockId: origin.blockId }
+    : { year: origin.year, blockId: origin.blockId };
 }
 
 function build(
@@ -178,8 +192,11 @@ function splitFields(rest: string, isTask: boolean): Fields {
       continue;
     }
     const origin = isTask && fields.origin === undefined ? TRAILING_ORIGIN.exec(text) : null;
-    if (origin?.[2] && origin[3] && isDailyPath(origin[1] ?? "")) {
-      fields.origin = { date: origin[2], blockId: origin[3] };
+    const parsedOrigin = origin
+      ? originFrom(origin[1] ?? "", origin[2] ?? "", origin[3] ?? "")
+      : null;
+    if (origin && parsedOrigin) {
+      fields.origin = parsedOrigin;
       text = text.slice(0, origin.index).trimEnd();
       continue;
     }
@@ -190,9 +207,17 @@ function splitFields(rest: string, isTask: boolean): Fields {
   return { text: text.trim(), signifiers, ...fields };
 }
 
-/** An origin link's path is either empty (file name only) or ends in `Daily/`. */
-function isDailyPath(prefix: string): boolean {
-  return prefix === "" || prefix.endsWith("Daily/");
+/**
+ * A `YYYY-MM-DD` key is a daily link and a `YYYY` key is a future link. Either way
+ * the path before the key is empty (file name only) or ends in `Daily/` or `Future/`
+ * to match. Any other link, like `[[Books/2026#^abc]]`, is not an origin.
+ */
+function originFrom(path: string, key: string, blockId: string): Origin | null {
+  if (blockId === "") return null;
+  if (key.length === 10) {
+    return path === "" || path.endsWith("Daily/") ? { date: key, blockId } : null;
+  }
+  return path === "" || path.endsWith("Future/") ? { year: key, blockId } : null;
 }
 
 /** Tabs are one level each. Spaces count in groups of 4, rounding up, so 2-space indents nest too. */

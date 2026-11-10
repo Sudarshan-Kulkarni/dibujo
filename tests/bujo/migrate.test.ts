@@ -201,7 +201,7 @@ describe("migration properties", () => {
           for (const copy of copies) {
             if (copy?.type !== "task") continue;
             expect(copy.state).toBe("open");
-            expect(copy.origin?.date).toBe(DATE);
+            expect(copy.origin).toMatchObject({ date: DATE });
             expect(marked.has(copy.origin?.blockId)).toBe(true);
           }
           expect(copies[0]?.origin?.blockId).toBe(plan.rootBlockId);

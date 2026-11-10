@@ -69,7 +69,7 @@ export function parseDailyNote(content: string): ParsedNote {
     if (match?.[1]) captureIds.push(match[1].toLowerCase());
   }
 
-  return { version: readVersion(lines, layout), bullets, unrecognized, captureIds };
+  return { version: readVersion(lines, layout.frontmatterEnd), bullets, unrecognized, captureIds };
 }
 
 /**
@@ -85,14 +85,14 @@ export function appendCapture(
   const { lines: originalLines, eol } = splitLines(original);
   let lines = [...originalLines];
 
-  lines = appendToSection(
+  lines = addToSection(
     lines,
     "log",
     LOG_HEADING,
     bullets.map((b) => formatBullet(b)),
     "captures",
   );
-  lines = appendToSection(lines, "captures", CAPTURES_HEADING, [...callout], null, true);
+  lines = addToSection(lines, "captures", CAPTURES_HEADING, [...callout], null, true);
 
   if (!isSubsequence(originalLines, lines)) {
     throw new Error("appendCapture would have removed or reordered existing lines");
@@ -106,18 +106,27 @@ export function appendCapture(
  */
 export function appendLogLines(original: string, addition: readonly string[]): string {
   const { lines: originalLines, eol } = splitLines(original);
-  const lines = appendToSection([...originalLines], "log", LOG_HEADING, [...addition], "captures");
+  const lines = addToSection([...originalLines], "log", LOG_HEADING, [...addition], "captures");
   if (!isSubsequence(originalLines, lines)) {
     throw new Error("appendLogLines would have removed or reordered existing lines");
   }
   return `${lines.join(eol)}${eol}`;
 }
 
-interface Range {
+/** A section of a note: from its heading line up to, not including, the next `## ` heading. */
+export interface Range {
   /** Index of the heading line. */
   start: number;
   /** Index of the next H2 heading, or the line count. */
   end: number;
+}
+
+/** A `## ` heading outside code fences. */
+export interface Heading {
+  /** 0-based index of the heading line. */
+  index: number;
+  /** The heading text, trimmed, in the case it was written. */
+  name: string;
 }
 
 interface Layout {
@@ -131,22 +140,10 @@ interface Layout {
 function scan(lines: readonly string[]): Layout {
   const frontmatterEnd = findFrontmatterEnd(lines);
   const bodyStart = frontmatterEnd === null ? 0 : frontmatterEnd + 1;
-  const headings: { index: number; name: string }[] = [];
-  let inFence = false;
-
-  for (let i = bodyStart; i < lines.length; i++) {
-    const line = lines[i] ?? "";
-    if (FENCE.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    const match = H2.exec(line);
-    if (match?.[1]) headings.push({ index: i, name: match[1].trim().toLowerCase() });
-  }
+  const headings = listHeadings(lines);
 
   const rangeOf = (name: string): Range | null => {
-    const at = headings.findIndex((h) => h.name === name);
+    const at = headings.findIndex((h) => h.name.toLowerCase() === name);
     const heading = headings[at];
     if (!heading) return null;
     return { start: heading.index, end: headings[at + 1]?.index ?? lines.length };
@@ -155,8 +152,27 @@ function scan(lines: readonly string[]): Layout {
   return { bodyStart, frontmatterEnd, log: rangeOf("log"), captures: rangeOf("captures") };
 }
 
+/** Lists the `## ` headings after the frontmatter, in order, skipping any inside code fences. */
+export function listHeadings(lines: readonly string[]): Heading[] {
+  const frontmatterEnd = findFrontmatterEnd(lines);
+  const headings: Heading[] = [];
+  let inFence = false;
+
+  for (let i = frontmatterEnd === null ? 0 : frontmatterEnd + 1; i < lines.length; i++) {
+    const line = lines[i] ?? "";
+    if (FENCE.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    const match = H2.exec(line);
+    if (match?.[1]) headings.push({ index: i, name: match[1].trim() });
+  }
+  return headings;
+}
+
 /** Index of the closing `---` of a frontmatter block at the top of the file, if any. */
-function findFrontmatterEnd(lines: readonly string[]): number | null {
+export function findFrontmatterEnd(lines: readonly string[]): number | null {
   if (lines[0]?.trimEnd() !== "---") return null;
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]?.trimEnd();
@@ -165,11 +181,19 @@ function findFrontmatterEnd(lines: readonly string[]): number | null {
   return null;
 }
 
-function readVersion(lines: readonly string[], layout: Layout): number | null {
-  if (layout.frontmatterEnd === null) return FORMAT_VERSION;
+/**
+ * Reads the `dibujo` version from the frontmatter that ends at `frontmatterEnd`
+ * (see `findFrontmatterEnd`). A note without frontmatter, or without the field, is version 1.
+ * `null` means the field is there but isn't a positive integer.
+ */
+export function readVersion(
+  lines: readonly string[],
+  frontmatterEnd: number | null,
+): number | null {
+  if (frontmatterEnd === null) return FORMAT_VERSION;
   let data: unknown;
   try {
-    data = parseYaml(lines.slice(1, layout.frontmatterEnd).join("\n"));
+    data = parseYaml(lines.slice(1, frontmatterEnd).join("\n"));
   } catch {
     // Frontmatter we can't parse belongs to the user. Leave it alone and assume v1.
     return FORMAT_VERSION;
@@ -181,12 +205,40 @@ function readVersion(lines: readonly string[], layout: Layout): number | null {
 }
 
 /**
- * Inserts `addition` after the last non-blank line of a section. Creates the
- * section if it's missing: before `beforeSection` when that exists, otherwise at
- * the end. With `separate`, a blank line goes between existing content and the
- * addition, which callouts need so they don't merge.
+ * Inserts `addition` after the last non-blank line of the section at `range`. With
+ * `separate`, a blank line goes between existing content and the addition, which
+ * callouts need so they don't merge. A section that has only its heading always
+ * gets a blank line after it.
  */
-function appendToSection(
+export function insertIntoRange(
+  lines: readonly string[],
+  range: Range,
+  addition: readonly string[],
+  separate = false,
+): string[] {
+  let last = range.start;
+  for (let i = range.end - 1; i > range.start; i--) {
+    if ((lines[i] ?? "").trim().length > 0) {
+      last = i;
+      break;
+    }
+  }
+  const block = last === range.start || separate ? ["", ...addition] : addition;
+  const next = lines[last + 1];
+  const needsTrailingBlank = next !== undefined && next.trim().length > 0;
+  return [
+    ...lines.slice(0, last + 1),
+    ...block,
+    ...(needsTrailingBlank ? [""] : []),
+    ...lines.slice(last + 1),
+  ];
+}
+
+/**
+ * Adds lines to the end of the Log or Captures section, creating the section if
+ * it's missing: before `beforeSection` when that exists, otherwise at the end.
+ */
+function addToSection(
   lines: string[],
   section: "log" | "captures",
   heading: string,
@@ -196,25 +248,7 @@ function appendToSection(
 ): string[] {
   const layout = scan(lines);
   const range = layout[section];
-
-  if (range) {
-    let last = range.start;
-    for (let i = range.end - 1; i > range.start; i--) {
-      if ((lines[i] ?? "").trim().length > 0) {
-        last = i;
-        break;
-      }
-    }
-    const block = last === range.start || separate ? ["", ...addition] : addition;
-    const next = lines[last + 1];
-    const needsTrailingBlank = next !== undefined && next.trim().length > 0;
-    return [
-      ...lines.slice(0, last + 1),
-      ...block,
-      ...(needsTrailingBlank ? [""] : []),
-      ...lines.slice(last + 1),
-    ];
-  }
+  if (range) return insertIntoRange(lines, range, addition, separate);
 
   const block = [heading, "", ...addition];
   const before = beforeSection ? layout[beforeSection] : null;
@@ -228,7 +262,7 @@ function appendToSection(
   return [...head, ...(head.length > 0 ? [""] : []), ...block, ...tail];
 }
 
-function lastNonBlank(lines: readonly string[]): number {
+export function lastNonBlank(lines: readonly string[]): number {
   for (let i = lines.length - 1; i >= 0; i--) {
     if ((lines[i] ?? "").trim().length > 0) return i;
   }
@@ -244,7 +278,7 @@ export function splitLines(content: string): { lines: string[]; eol: string } {
   return { lines, eol };
 }
 
-function isSubsequence(needle: readonly string[], haystack: readonly string[]): boolean {
+export function isSubsequence(needle: readonly string[], haystack: readonly string[]): boolean {
   let j = 0;
   for (const line of haystack) {
     if (j < needle.length && line === needle[j]) j++;

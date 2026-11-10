@@ -1,6 +1,6 @@
-import { randomInt } from "node:crypto";
-import { fingerprint } from "../bujo/bullet.js";
-import { applyLineEdits, setCheckbox, setScheduled } from "../bujo/edit.js";
+import { fingerprint, formatBullet } from "../bujo/bullet.js";
+import { addBlockId, applyLineEdits, setCheckbox, setScheduled } from "../bujo/edit.js";
+import { findLive, monthOf } from "../bujo/future.js";
 import { addDays, journalDate, parseDateArg } from "../bujo/journal-date.js";
 import { planMigration } from "../bujo/migrate.js";
 import {
@@ -16,8 +16,19 @@ import type { Bullet, Signifier, TaskState } from "../bujo/types.js";
 import type { VaultConfig } from "../config.js";
 import { DibujoError, isDibujoError } from "../errors.js";
 import { replaceIfUnchanged, type WriteHooks, writeNew } from "./atomic-write.js";
+import { freshBlockId, randomBlockId, usedBlockIds } from "./block-id.js";
 import { assertSupported, readIfExists } from "./daily.js";
-import { dailyNotePath } from "./paths.js";
+import { loadFutureNotes, locateEntries, planAppend, planReschedule } from "./future.js";
+import { assertLinkSafeFolder, dailyNotePath } from "./paths.js";
+import {
+  type CommitOptions,
+  commitWrites,
+  type PlannedWrite,
+  type WriteStatus,
+  writeStatus,
+} from "./write-plan.js";
+
+export { randomBlockId };
 
 /** A task found on disk from a ref. */
 export interface ResolvedTask {
@@ -107,13 +118,47 @@ export function setTaskState(
   return writeEdit(task, after, state, options);
 }
 
-/** Marks a task scheduled (`[<]`) and sets its `⏳` date. Works on open or scheduled tasks. */
+export interface ScheduleOptions {
+  dryRun?: boolean;
+  /** Test hooks for the writes, in write order: the daily note, then the future log. */
+  hooks?: CommitOptions;
+  /** Block id generator. Random by default. */
+  newId?: () => string;
+}
+
+/** What `scheduleTask` did in the future log. */
+export interface ScheduleFutureInfo {
+  /** The note that now holds the waiting entry. */
+  path: string;
+  year: string;
+  /**
+   * `added`: a new waiting entry. `rescheduled`: the entry moved to the new date.
+   * `unchanged`: a waiting entry for this date was already there.
+   */
+  action: "added" | "rescheduled" | "unchanged";
+  /** The status of the note that holds the waiting entry. */
+  status: WriteStatus;
+}
+
+export interface ScheduleResult extends TaskEditResult {
+  future: ScheduleFutureInfo;
+  /** The resulting future log note holding the waiting entry. Only set for dry runs. */
+  futureContent?: string;
+}
+
+/**
+ * Marks a task scheduled (`[<]`), sets its `⏳` date and a block id, and writes a
+ * waiting entry for the date into the future log. Works on open or scheduled tasks.
+ *
+ * The daily note is written first and the future log second, so running the same
+ * command again after an interruption adds the missing entry and nothing else.
+ */
 export function scheduleTask(
   config: VaultConfig,
   ref: string,
   date: string,
-  options: EditOptions = {},
-): TaskEditResult {
+  options: ScheduleOptions = {},
+): ScheduleResult {
   const on = parseDateArg(date);
   const task = resolveRef(config, ref);
   const state = task.bullet.state ?? "open";
@@ -131,9 +176,76 @@ export function scheduleTask(
       "Pick a date after the note's date.",
     );
   }
-  const after = setScheduled(setCheckbox(task.rawLine, "scheduled"), on);
-  const result = writeEdit(task, after, "scheduled", options);
-  result.scheduled = on;
+  assertLinkSafeFolder(config);
+
+  // Read and check every future log note before writing anything.
+  const notes = loadFutureNotes(config);
+  const newId = options.newId ?? randomBlockId;
+  const id = task.bullet.blockId ?? freshBlockId(usedBlockIds(task.content), newId);
+
+  const after = addBlockId(setScheduled(setCheckbox(task.rawLine, "scheduled"), on), id);
+  const dailyContent =
+    after === task.rawLine
+      ? task.content
+      : applyLineEdits(task.content, [{ line: task.bullet.line, before: task.rawLine, after }]);
+  const dailyWrite: PlannedWrite = {
+    path: task.path,
+    original: task.content,
+    content: dailyContent,
+  };
+
+  const live = findLive(locateEntries(notes), { date: task.date, blockId: id });
+  let futureWrites: PlannedWrite[];
+  let action: ScheduleFutureInfo["action"];
+  let where: { path: string; year: string };
+  if (live?.kind === "waiting" && live.entry.scheduled === on) {
+    const note = notes.find((n) => n.year === live.entry.year);
+    futureWrites = note ? [{ path: note.path, original: note.content, content: note.content }] : [];
+    action = "unchanged";
+    where = { path: note?.path ?? "", year: live.entry.year };
+  } else if (live) {
+    const plan = planReschedule(config, notes, live.entry, on, newId);
+    futureWrites = plan.writes;
+    action = plan.status === "unchanged" ? "unchanged" : "rescheduled";
+    where = plan.to;
+  } else {
+    const entry = formatBullet(
+      {
+        type: "task",
+        state: "open",
+        signifiers: [...task.bullet.signifiers],
+        text: task.bullet.text,
+        depth: 0,
+        origin: { date: task.date, blockId: id },
+        scheduled: on,
+      },
+      { folder: config.folder },
+    );
+    const write = planAppend(config, notes, on.slice(0, 4), monthOf(on), [entry]);
+    futureWrites = [write];
+    action = "added";
+    where = { path: write.path, year: on.slice(0, 4) };
+  }
+
+  const writes = [dailyWrite, ...futureWrites];
+  const dryRun = options.dryRun === true;
+  const statuses = dryRun ? writes.map(writeStatus) : commitWrites(writes, options.hooks);
+  const dailyStatus = statuses[0] === "unchanged" ? "unchanged" : "updated";
+  const holder = futureWrites[futureWrites.length - 1];
+  const result: ScheduleResult = {
+    status: dailyStatus,
+    ref: task.ref,
+    path: task.path,
+    date: task.date,
+    state: "scheduled",
+    scheduled: on,
+    dryRun,
+    future: { ...where, action, status: statuses[statuses.length - 1] ?? "unchanged" },
+  };
+  if (dryRun) {
+    result.content = dailyContent;
+    if (holder) result.futureContent = holder.content;
+  }
   return result;
 }
 
@@ -180,8 +292,6 @@ export interface MigrateResult {
   targetContent?: string;
 }
 
-const UNSAFE_LINK_CHARS = /[[\]|#^]/;
-
 /**
  * Migrates a task and what's nested under it to another daily note. The source
  * note is written first and the target second, so running the same command
@@ -192,13 +302,7 @@ export function migrateTask(
   ref: string,
   options: MigrateOptions,
 ): MigrateResult {
-  if (UNSAFE_LINK_CHARS.test(config.folder)) {
-    throw new DibujoError(
-      "CONFIG_INVALID",
-      `The dibujo folder "${config.folder}" contains a character that breaks Obsidian links ([ ] | # ^).`,
-      "Rename the folder and run `dibujo init --force --folder <name>`. Nothing was written.",
-    );
-  }
+  assertLinkSafeFolder(config);
   const task = resolveRef(config, ref);
   const to =
     options.to === undefined
@@ -226,7 +330,11 @@ export function migrateTask(
   const targetParsed = parseDailyNote(targetBase);
   assertSupported(targetParsed, targetPath);
   const alreadyCopied = targetParsed.bullets.some(
-    (b) => b.origin?.date === task.date && b.origin.blockId === plan.rootBlockId,
+    (b) =>
+      b.origin !== undefined &&
+      "date" in b.origin &&
+      b.origin.date === task.date &&
+      b.origin.blockId === plan.rootBlockId,
   );
 
   // Once the target has the copy, the migration is finished: change nothing. A
@@ -263,15 +371,6 @@ export function migrateTask(
     replaceIfUnchanged(targetPath, targetOriginal, targetContent, options.hooks?.target);
   }
   return result;
-}
-
-const ID_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
-
-/** Six random base36 characters, like the block ids Obsidian makes. */
-export function randomBlockId(): string {
-  let id = "";
-  for (let i = 0; i < 6; i++) id += ID_ALPHABET[randomInt(ID_ALPHABET.length)];
-  return id;
 }
 
 export interface ReviewChild {
@@ -365,7 +464,8 @@ export function reviewTasks(config: VaultConfig, today: string): ReviewResult {
 /**
  * Follows origin links back one day at a time. Each link to a migrated task in
  * the previous day's note adds one. A missing note, a deleted line, a link to any
- * other day, or a note this dibujo can't read ends the streak without an error.
+ * other day or to the future log, or a note this dibujo can't read ends the streak
+ * without an error.
  */
 export function migrationStreak(
   task: Bullet,
@@ -379,7 +479,8 @@ export function migrationStreak(
 
   for (;;) {
     const origin = current.origin;
-    if (!origin || origin.date !== addDays(currentDate, -1)) break;
+    // A future origin ends the streak, like a link to any day other than the day before.
+    if (!origin || !("date" in origin) || origin.date !== addDays(currentDate, -1)) break;
     const source = loadNote(origin.date)?.bullets.find((b) => b.blockId === origin.blockId);
     if (source?.type !== "task" || source.state !== "migrated") break;
     streak++;

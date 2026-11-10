@@ -26,7 +26,9 @@ export function humanBullet(bullet: Bullet, extraIndent = 0): string {
         ? "○"
         : "–";
   const suffixes = [
-    bullet.origin ? `↩ ${bullet.origin.date}` : "",
+    bullet.origin
+      ? `↩ ${"date" in bullet.origin ? bullet.origin.date : `future log ${bullet.origin.year}`}`
+      : "",
     bullet.scheduled ? `⏳ ${bullet.scheduled}` : "",
     bullet.state === "cancelled" ? "(cancelled)" : "",
   ].filter((s) => s.length > 0);

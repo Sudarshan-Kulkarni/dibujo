@@ -1,4 +1,5 @@
 import { registerConfigShow } from "./config-show.js";
+import { registerFuture } from "./future.js";
 import { registerInit } from "./init.js";
 import { registerLog } from "./log.js";
 import type { Register } from "./program.js";
@@ -11,5 +12,6 @@ export const registers: readonly Register[] = [
   registerConfigShow,
   registerLog,
   registerTask,
+  registerFuture,
   registerSkills,
 ];
