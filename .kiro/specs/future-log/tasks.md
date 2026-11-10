@@ -137,20 +137,20 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 9.2 In `tests/docs/vault-format.test.ts`, add one test that parses the future log example from the document and checks that its daily-to-future and future-to-daily links point at each other's block ids.
   - _Requirements: 6.1 to 6.3_
 
-- [ ] 10. Update the `morning-planning` skill
+- [x] 10. Update the `morning-planning` skill
   - _Depends on: 8. Can run at the same time as task 9._
-  - [ ] 10.1 Edit `skills/morning-planning/SKILL.md`, following "The `morning-planning` skill" in the design:
+  - [x] 10.1 Edit `skills/morning-planning/SKILL.md`, following "The `morning-planning` skill" in the design:
     - Add the due-entries step after migration, with the choice table, the neutral overdue wording, and "leave" meaning the entry comes back tomorrow.
     - Renumber the steps. Update the opening sentence, the priority step (`--priority` for entries brought in), the confirmation example (a "Future log" section), the save order, the brain-dump duplicate rule, and the report step.
     - Say in the migration step that scheduling also writes the future log.
-  - [ ] 10.2 Keep the frontmatter to `name` and `description`, and update the `description` to mention scheduled tasks coming back. Don't restate the note format. Keep linking to `references/vault-format.md`.
+  - [x] 10.2 Keep the frontmatter to `name` and `description`, and update the `description` to mention scheduled tasks coming back. Don't restate the note format. Keep linking to `references/vault-format.md`.
   - _Requirements: 5.1 to 5.10_
 
-- [ ] 11. Final checks
+- [x] 11. Final checks
   - _Depends on: 9, 10_
-  - [ ] 11.1 Update `.kiro/steering/structure.md`: list the new `src/bujo/` and `src/vault/` modules and the `Future/` note location.
-  - [ ] 11.2 Run `npm run format`, `npm run check`, and `npm test`. Then run `npm run build` and `npm pack --dry-run`, and confirm the output includes `dist/cli/future-*.js` and `skills/morning-planning/SKILL.md`.
-  - [ ] 11.3 With a scratch vault (`DIBUJO_VAULT_PATH` pointing at a temporary folder, and `XDG_CONFIG_HOME` at another), run the built CLI: `task schedule` on a task, `future show`, `future due --date <the task's date>`, `future migrate`, and `log show`. Confirm each exits with code 0 and prints valid JSON with `--json`.
+  - [x] 11.1 Update `.kiro/steering/structure.md`: list the new `src/bujo/` and `src/vault/` modules and the `Future/` note location.
+  - [x] 11.2 Run `npm run format`, `npm run check`, and `npm test`. Then run `npm run build` and `npm pack --dry-run`, and confirm the output includes `dist/cli/future-*.js` and `skills/morning-planning/SKILL.md`.
+  - [x] 11.3 With a scratch vault (`DIBUJO_VAULT_PATH` pointing at a temporary folder, and `XDG_CONFIG_HOME` at another), run the built CLI: `task schedule` on a task, `future show`, `future due --date <the task's date>`, `future migrate`, and `log show`. Confirm each exits with code 0 and prints valid JSON with `--json`.
   - _Requirements: 6.3_
 
 ## For the user, after the pull request (not for the agent)
