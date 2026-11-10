@@ -39,10 +39,10 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - Extend `tests/helpers/arbitraries.ts` so generated task bullets can have either origin kind, and let the existing round-trip property in `tests/bujo/bullet.property.test.ts` cover them.
   - _Requirements: 1.8_
 
-- [ ] 3. Share the note helpers (no behavior change)
+- [x] 3. Share the note helpers (no behavior change)
   - _Depends on: 1_
-  - [ ] 3.1 In `src/bujo/note.ts`, export `findFrontmatterEnd` and `readVersion` (make `readVersion` take the frontmatter end instead of the daily `Layout`). Add an exported function that lists the `## ` headings outside code fences, with their line index and name. Replace `appendToSection` with a function that takes a section range (`insertIntoRange(lines, range, addition, separate)`), and make `appendCapture` and `appendLogLines` use it.
-  - [ ] 3.2 No new tests. All existing tests must pass unchanged, which proves daily notes behave the same.
+  - [x] 3.1 In `src/bujo/note.ts`, export `findFrontmatterEnd` and `readVersion` (make `readVersion` take the frontmatter end instead of the daily `Layout`). Add an exported function that lists the `## ` headings outside code fences, with their line index and name. Replace `appendToSection` with a function that takes a section range (`insertIntoRange(lines, range, addition, separate)`), and make `appendCapture` and `appendLogLines` use it.
+  - [x] 3.2 No new tests. All existing tests must pass unchanged, which proves daily notes behave the same.
   - _Requirements: 6.2_
 
 - [ ] 4. Future log note logic (pure)
