@@ -118,12 +118,12 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - An interruption between the two writes is finished by a rerun, without a second entry.
   - _Requirements: 2.1 to 2.10_
 
-- [ ] 8. CLI commands
+- [x] 8. CLI commands
   - _Depends on: 7_
-  - [ ] 8.1 Create the `future` group in `src/cli/future.ts`, with one file per command, in the style of the `task` commands: `future-show.ts` (`--year`, `--json`), `future-due.ts` (`--date`, `--json`), `future-migrate.ts` (`<ref>`, `--to`, `--priority`, `--dry-run`, `--json`), `future-reschedule.ts` (`<ref> <date>`, `--dry-run`, `--json`), and `future-cancel.ts` (`<ref>`, `--dry-run`, `--json`). Use the JSON shapes in "CLI" in the design. Register the group in `src/cli/registers.ts`.
-  - [ ] 8.2 Update `src/cli/task-schedule.ts` to print the future log result (human and JSON), and update the `--help` text of `task schedule` to say that it also writes the future log.
-  - [ ] 8.3 Human output uses the existing symbols. A due entry shows `⏳ <date>` and `(<n> days overdue)`.
-  - [ ] 8.4 One end-to-end test in `tests/cli/future.test.ts`, in the style of `tests/cli/task.test.ts`. Run `task schedule` on three tasks, move the clock past their dates, and check that `future due --json` lists them. Then run `future migrate`, `future reschedule`, and `future cancel`, one on each. Check that `future due` is empty afterward, that `future show --json` shows the right states, and that `log show --json` for today lists the migrated task with a future origin. Every `--json` output must parse. In the same file, check that giving a daily ref to `future cancel` exits with code 2.
+  - [x] 8.1 Create the `future` group in `src/cli/future.ts`, with one file per command, in the style of the `task` commands: `future-show.ts` (`--year`, `--json`), `future-due.ts` (`--date`, `--json`), `future-migrate.ts` (`<ref>`, `--to`, `--priority`, `--dry-run`, `--json`), `future-reschedule.ts` (`<ref> <date>`, `--dry-run`, `--json`), and `future-cancel.ts` (`<ref>`, `--dry-run`, `--json`). Use the JSON shapes in "CLI" in the design. Register the group in `src/cli/registers.ts`.
+  - [x] 8.2 Update `src/cli/task-schedule.ts` to print the future log result (human and JSON), and update the `--help` text of `task schedule` to say that it also writes the future log.
+  - [x] 8.3 Human output uses the existing symbols. A due entry shows `⏳ <date>` and `(<n> days overdue)`.
+  - [x] 8.4 One end-to-end test in `tests/cli/future.test.ts`, in the style of `tests/cli/task.test.ts`. Run `task schedule` on three tasks, move the clock past their dates, and check that `future due --json` lists them. Then run `future migrate`, `future reschedule`, and `future cancel`, one on each. Check that `future due` is empty afterward, that `future show --json` shows the right states, and that `log show --json` for today lists the migrated task with a future origin. Every `--json` output must parse. In the same file, check that giving a daily ref to `future cancel` exits with code 2.
   - _Requirements: 3, 4, 2.9_
 
 - [ ] 9. Vault format document
