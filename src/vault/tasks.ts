@@ -226,7 +226,11 @@ export function migrateTask(
   const targetParsed = parseDailyNote(targetBase);
   assertSupported(targetParsed, targetPath);
   const alreadyCopied = targetParsed.bullets.some(
-    (b) => b.origin?.date === task.date && b.origin.blockId === plan.rootBlockId,
+    (b) =>
+      b.origin !== undefined &&
+      "date" in b.origin &&
+      b.origin.date === task.date &&
+      b.origin.blockId === plan.rootBlockId,
   );
 
   // Once the target has the copy, the migration is finished: change nothing. A
@@ -365,7 +369,8 @@ export function reviewTasks(config: VaultConfig, today: string): ReviewResult {
 /**
  * Follows origin links back one day at a time. Each link to a migrated task in
  * the previous day's note adds one. A missing note, a deleted line, a link to any
- * other day, or a note this dibujo can't read ends the streak without an error.
+ * other day or to the future log, or a note this dibujo can't read ends the streak
+ * without an error.
  */
 export function migrationStreak(
   task: Bullet,
@@ -379,7 +384,8 @@ export function migrationStreak(
 
   for (;;) {
     const origin = current.origin;
-    if (!origin || origin.date !== addDays(currentDate, -1)) break;
+    // A future origin ends the streak, like a link to any day other than the day before.
+    if (!origin || !("date" in origin) || origin.date !== addDays(currentDate, -1)) break;
     const source = loadNote(origin.date)?.bullets.find((b) => b.blockId === origin.blockId);
     if (source?.type !== "task" || source.state !== "migrated") break;
     streak++;

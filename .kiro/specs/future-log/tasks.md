@@ -23,17 +23,17 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 1.5 In `src/vault/daily.ts`, change `assertSupported` to accept anything with a `version: number | null`, not just `ParsedNote`.
   - _Requirements: 4.9, 6.1_
 
-- [ ] 2. Origin links to the future log
+- [x] 2. Origin links to the future log
   - _Depends on: 1_
-  - [ ] 2.1 In `src/bujo/types.ts`, replace `Origin` with `DailyOrigin { date; blockId }`, `FutureOrigin { year; blockId }`, and `Origin = DailyOrigin | FutureOrigin`. See "Links" in the design.
-  - [ ] 2.2 In `src/bujo/bullet.ts`:
+  - [x] 2.1 In `src/bujo/types.ts`, replace `Origin` with `DailyOrigin { date; blockId }`, `FutureOrigin { year; blockId }`, and `Origin = DailyOrigin | FutureOrigin`. See "Links" in the design.
+  - [x] 2.2 In `src/bujo/bullet.ts`:
     - Change `TRAILING_ORIGIN` to the pattern in the design. A key of `YYYY-MM-DD` is a daily link, and its path must be empty or end in `Daily/`. A key of `YYYY` is a future link, and its path must be empty or end in `Future/`. Anything else stays in the text.
     - Make `formatOriginLink` write both forms. Daily keeps `[[<folder>/Daily/<date>#^<id>|from <date>]]`. Future writes `[[<folder>/Future/<year>#^<id>|from future log <year>]]`. Without a folder, both use the file name only.
     - Make `fingerprint()` use `{ date, blockId }` for a daily origin, exactly as now, and `{ year, blockId }` for a future origin.
-  - [ ] 2.3 Fix every place that reads `origin.date`, using `"date" in origin` to narrow:
+  - [x] 2.3 Fix every place that reads `origin.date`, using `"date" in origin` to narrow:
     - `src/vault/tasks.ts`: the `alreadyCopied` check in `migrateTask`, and `migrationStreak`. A future origin ends a streak, like a link to any day other than the day before.
     - `src/cli/bullet-symbols.ts`: show `↩ future log <year>` for a future origin.
-  - [ ] 2.4 Tests (core only):
+  - [x] 2.4 Tests (core only):
     - Before changing `fingerprint`, compute it for `{ type: "task", depth: 0, text: "call the bank", signifiers: ["priority"], origin: { date: "2026-11-08", blockId: "k3f9a1" } }` with the current code, and pin the result in a test. This proves existing daily refs don't change.
     - In `tests/bujo/bullet.test.ts`, add a small table of origin links: full path, basename only, with and without an alias, for both kinds. Include `[[Books/2026#^abc]]` and `[[Bujo/Daily/2026#^abc]]` (a year key in a `Daily/` path), which must both stay in the text.
     - Extend `tests/helpers/arbitraries.ts` so generated task bullets can have either origin kind, and let the existing round-trip property in `tests/bujo/bullet.property.test.ts` cover them.

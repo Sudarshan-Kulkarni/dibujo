@@ -22,11 +22,20 @@ export interface Bullet {
   blockId?: string;
 }
 
-/** Points at a task in another daily note: the note's date and the task's block id. */
-export interface Origin {
+/** Points at a task in a daily note: the note's date and the task's block id. */
+export interface DailyOrigin {
   date: string;
   blockId: string;
 }
+
+/** Points at an entry in a future log note: the note's year (`"2026"`) and the entry's block id. */
+export interface FutureOrigin {
+  year: string;
+  blockId: string;
+}
+
+/** Where a task came from. Narrow with `"date" in origin`. */
+export type Origin = DailyOrigin | FutureOrigin;
 
 /** Highest nesting level the CLI writes. Deeper levels are still read. */
 export const MAX_WRITE_DEPTH = 3;
