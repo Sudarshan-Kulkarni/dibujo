@@ -23,6 +23,10 @@ export function dailyNotePath(config: VaultConfig, date: string): string {
   return resolveInVault(config, "Daily", `${date}.md`);
 }
 
+export function futureNotePath(config: VaultConfig, year: string): string {
+  return resolveInVault(config, "Future", `${year}.md`);
+}
+
 function assertInside(root: string, target: string): void {
   const rel = relative(root, target);
   if (rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))) return;

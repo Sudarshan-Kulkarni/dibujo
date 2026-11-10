@@ -15,12 +15,12 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
 
 ---
 
-- [ ] 1. Groundwork
-  - [ ] 1.1 Add `.nvmrc` containing `22`, so the sandbox and local shells pick a supported Node.
-  - [ ] 1.2 In `src/bujo/journal-date.ts`, add `daysBetween(from, to)`: the number of calendar days from one `YYYY-MM-DD` date to another, anchored at local noon like `addDays` so DST can't change the result. Add one test in `tests/bujo/journal-date.test.ts` covering a month end, a leap day, and a DST change day.
-  - [ ] 1.3 In `src/vault/paths.ts`, add `futureNotePath(config, year)`, returning `<vault>/<folder>/Future/<year>.md` through `resolveInVault`.
-  - [ ] 1.4 In `src/bujo/ref.ts`, add `formatFutureRef(year, line, fingerprint)` and `parseFutureRef(value)`. The shape is `YYYY:<line>:<8 hex>`, and anything else throws `INVALID_REF`. Make the hint of each parser mention the other kind when the value has the other kind's shape (for example, "this looks like a future log ref, use `dibujo future ...`"). `parseRef` itself must keep its current behavior. Add one `fast-check` round-trip test for future refs in `tests/bujo/ref.test.ts`.
-  - [ ] 1.5 In `src/vault/daily.ts`, change `assertSupported` to accept anything with a `version: number | null`, not just `ParsedNote`.
+- [x] 1. Groundwork
+  - [x] 1.1 Add `.nvmrc` containing `22`, so the sandbox and local shells pick a supported Node.
+  - [x] 1.2 In `src/bujo/journal-date.ts`, add `daysBetween(from, to)`: the number of calendar days from one `YYYY-MM-DD` date to another, anchored at local noon like `addDays` so DST can't change the result. Add one test in `tests/bujo/journal-date.test.ts` covering a month end, a leap day, and a DST change day.
+  - [x] 1.3 In `src/vault/paths.ts`, add `futureNotePath(config, year)`, returning `<vault>/<folder>/Future/<year>.md` through `resolveInVault`.
+  - [x] 1.4 In `src/bujo/ref.ts`, add `formatFutureRef(year, line, fingerprint)` and `parseFutureRef(value)`. The shape is `YYYY:<line>:<8 hex>`, and anything else throws `INVALID_REF`. Make the hint of each parser mention the other kind when the value has the other kind's shape (for example, "this looks like a future log ref, use `dibujo future ...`"). `parseRef` itself must keep its current behavior. Add one `fast-check` round-trip test for future refs in `tests/bujo/ref.test.ts`.
+  - [x] 1.5 In `src/vault/daily.ts`, change `assertSupported` to accept anything with a `version: number | null`, not just `ParsedNote`.
   - _Requirements: 4.9, 6.1_
 
 - [ ] 2. Origin links to the future log
