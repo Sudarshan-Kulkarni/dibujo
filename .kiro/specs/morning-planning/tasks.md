@@ -75,14 +75,14 @@ Each task builds on the ones before it and ends with `npm run check` and `npm te
     - Invalid flag input exits 2.
   - _Requirements: 7.1–7.5_
 
-- [ ] 7. Vault task operations: resolve, set, schedule
-  - [ ] 7.1 Export `readIfExists` and `assertSupported` from `src/vault/daily.ts`. Add `ref` to each bullet that `readDailyNote` returns.
-  - [ ] 7.2 Create `src/vault/tasks.ts` with `resolveRef(config, ref)`. It resolves the line, relocates by fingerprint when the line moved, fails with `TASK_NOT_FOUND` for a missing or ambiguous match, and with `NOT_A_TASK` for an event or a note.
-  - [ ] 7.3 Add `setTaskState(config, ref, state, { dryRun, hooks })` and `scheduleTask(config, ref, date, { dryRun, hooks })`:
+- [x] 7. Vault task operations: resolve, set, schedule
+  - [x] 7.1 Export `readIfExists` and `assertSupported` from `src/vault/daily.ts`. Add `ref` to each bullet that `readDailyNote` returns.
+  - [x] 7.2 Create `src/vault/tasks.ts` with `resolveRef(config, ref)`. It resolves the line, relocates by fingerprint when the line moved, fails with `TASK_NOT_FOUND` for a missing or ambiguous match, and with `NOT_A_TASK` for an event or a note.
+  - [x] 7.3 Add `setTaskState(config, ref, state, { dryRun, hooks })` and `scheduleTask(config, ref, date, { dryRun, hooks })`:
     - They use `applyLineEdits` and `replaceIfUnchanged`.
     - They return `unchanged` when there is nothing to change.
     - `scheduleTask` accepts open or scheduled tasks only (otherwise `TASK_NOT_OPEN`), and requires a date later than the note's date (otherwise `INVALID_DATE`).
-  - [ ] 7.4 Add integration tests in a temp vault:
+  - [x] 7.4 Add integration tests in a temp vault:
     - Each state change.
     - `unchanged`.
     - Relocation after a line is inserted above the task.
@@ -94,13 +94,13 @@ Each task builds on the ones before it and ends with `npm run check` and `npm te
     - No temp files are left behind.
   - _Requirements: 1.1–1.6, 3.1–3.4_
 
-- [ ] 8. Vault task operations: migrate
-  - [ ] 8.1 Add `migrateTask(config, ref, { to, priority, dryRun, now, hooks })` to `src/vault/tasks.ts`:
+- [x] 8. Vault task operations: migrate
+  - [x] 8.1 Add `migrateTask(config, ref, { to, priority, dryRun, now, hooks })` to `src/vault/tasks.ts`:
     - Resolve the ref, plan the migration with random base36 ids, and write the source first.
     - Then read the target, skip it if the root's copy is already there, and otherwise append with `appendLogLines`, using `writeNew` or `replaceIfUnchanged`.
     - `to` defaults to today's journal date and must be later than the source date.
     - Fail with `CONFIG_INVALID` before writing if the folder contains `[`, `]`, `|`, `#`, or `^`.
-  - [ ] 8.2 Add integration tests:
+  - [x] 8.2 Add integration tests:
     - Migrating into a new note and into an existing note matches fixture files.
     - Migrating a task with nested children.
     - A rerun returns `unchanged` for both notes.
@@ -109,15 +109,15 @@ Each task builds on the ones before it and ends with `npm run check` and `npm te
     - `--priority`.
     - A dry run returns both contents and writes nothing.
     - An invalid folder name.
-  - [ ] 8.3 Add a `fast-check` property: running `migrateTask` twice on a generated note gives the same files as running it once.
+  - [x] 8.3 Add a `fast-check` property: running `migrateTask` twice on a generated note gives the same files as running it once.
   - _Requirements: 2.1–2.9_
 
-- [ ] 9. Review and streaks
-  - [ ] 9.1 Add `migrationStreak(task, taskDate, loadNote)` and `reviewTasks(config, today)` to `src/vault/tasks.ts`, following the design:
+- [x] 9. Review and streaks
+  - [x] 9.1 Add `migrationStreak(task, taskDate, loadNote)` and `reviewTasks(config, today)` to `src/vault/tasks.ts`, following the design:
     - Follow origin links back one day at a time, with a cache of parsed notes.
     - Stop silently at missing notes, missing lines, non-adjacent days, non-migrated sources, and unsupported note versions.
     - Return top-level open tasks with `children`, `streak`, `since`, and `flagged`.
-  - [ ] 9.2 Add tests:
+  - [x] 9.2 Add tests:
     - Streaks of 0, 1, and 4 days.
     - A gap day.
     - A deleted source line.
@@ -128,10 +128,10 @@ Each task builds on the ones before it and ends with `npm run check` and `npm te
     - An empty result for a missing note or a note with no open tasks.
   - _Requirements: 4.1–4.8_
 
-- [ ] 10. CLI commands
-  - [ ] 10.1 Create `src/cli/task.ts` (the `task` group), plus `task-review.ts`, `task-set.ts` (with `<state>` limited by `.choices()`), `task-schedule.ts`, and `task-migrate.ts`. Each has the options and JSON shapes from the design, and human output with Bullet Journal symbols. Register the group in `src/cli/registers.ts`.
-  - [ ] 10.2 Update `src/cli/log-show.ts`: add `ref` to the JSON bullets, and show `⏳ <date>` and `↩ <date>` in the human output.
-  - [ ] 10.3 Add CLI tests through `runCli`:
+- [x] 10. CLI commands
+  - [x] 10.1 Create `src/cli/task.ts` (the `task` group), plus `task-review.ts`, `task-set.ts` (with `<state>` limited by `.choices()`), `task-schedule.ts`, and `task-migrate.ts`. Each has the options and JSON shapes from the design, and human output with Bullet Journal symbols. Register the group in `src/cli/registers.ts`.
+  - [x] 10.2 Update `src/cli/log-show.ts`: add `ref` to the JSON bullets, and show `⏳ <date>` and `↩ <date>` in the human output.
+  - [x] 10.3 Add CLI tests through `runCli`:
     - A full morning: review, set, schedule, migrate, then `log show` on both days.
     - Each new error code and its exit code.
     - `--json` stdout always parses.
@@ -139,16 +139,16 @@ Each task builds on the ones before it and ends with `npm run check` and `npm te
     - A missing config gives the `dibujo init` hint.
   - _Requirements: 1.6, 2.9, 4.1, 4.2_
 
-- [ ] 11. Vault format document
-  - [ ] 11.1 Update `docs/vault-format.md`:
+- [x] 11. Vault format document
+  - [x] 11.1 Update `docs/vault-format.md`:
     - Add a "Task fields" section covering the origin link, the scheduled date, and the block id, with the canonical order, the parsing rules, and why the block id comes last.
     - Add a "Migration" section covering `[>]`, what moves with a task, the link back, and how streaks are counted.
     - Update the example note, and "How dibujo writes to a note", which now edits checkbox characters and trailing fields.
-  - [ ] 11.2 Extend `tests/docs/vault-format.test.ts` so the new example blocks parse to the expected bullets.
+  - [x] 11.2 Extend `tests/docs/vault-format.test.ts` so the new example blocks parse to the expected bullets.
   - _Requirements: 6.1–6.4_
 
-- [ ] 12. `morning-planning` skill
-  - [ ] 12.1 Write `skills/morning-planning/SKILL.md` with the frontmatter and the steps from the design:
+- [x] 12. `morning-planning` skill
+  - [x] 12.1 Write `skills/morning-planning/SKILL.md` with the frontmatter and the steps from the design:
     - find the CLI;
     - review;
     - migration, including the flagged message and child tasks;
@@ -159,7 +159,7 @@ Each task builds on the ones before it and ends with `npm run check` and `npm te
     - report.
 
     Include the skipping rules, and link to `references/vault-format.md`.
-  - [ ] 12.2 Install with `npm run dev -- skills install --target .kiro/skills`. Run a manual morning against a scratch vault with yesterday's note holding:
+  - [x] 12.2 Install with `npm run dev -- skills install --target .kiro/skills`. Run a manual morning against a scratch vault with yesterday's note holding:
     - a task with nested children;
     - a task with a 3-day streak;
     - a task to schedule;
@@ -173,7 +173,7 @@ Each task builds on the ones before it and ends with `npm run check` and `npm te
     - that running the ritual a second time finds nothing left to review.
   - _Requirements: 5.1–5.12_
 
-- [ ] 13. Final checks
-  - [ ] 13.1 Update `.kiro/steering/structure.md` to list the `morning-planning` skill and the new `src/bujo/` and `src/vault/` modules.
-  - [ ] 13.2 Run `npm run build` and `npm link`, then run `dibujo task review --json` and `dibujo task migrate --dry-run --json` against a scratch vault. Run `npm pack --dry-run` and confirm `skills/morning-planning/` is included.
+- [x] 13. Final checks
+  - [x] 13.1 Update `.kiro/steering/structure.md` to list the `morning-planning` skill and the new `src/bujo/` and `src/vault/` modules.
+  - [x] 13.2 Run `npm run build` and `npm link`, then run `dibujo task review --json` and `dibujo task migrate --dry-run --json` against a scratch vault. Run `npm pack --dry-run` and confirm `skills/morning-planning/` is included.
   - _Requirements: 5.1_

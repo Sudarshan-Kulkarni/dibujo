@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fingerprint } from "../bujo/bullet.js";
 import { type Capture, captureId, formatCallout } from "../bujo/capture.js";
 import { localTime } from "../bujo/journal-date.js";
 import {
@@ -10,16 +11,22 @@ import {
   parseDailyNote,
   type UnrecognizedLine,
 } from "../bujo/note.js";
+import { formatRef } from "../bujo/ref.js";
 import type { VaultConfig } from "../config.js";
 import { DibujoError } from "../errors.js";
 import { replaceIfUnchanged, type WriteHooks, writeNew } from "./atomic-write.js";
 import { dailyNotePath } from "./paths.js";
 
+/** A bullet from a note on disk, with the ref that points back to it. */
+export interface NoteBullet extends ParsedBullet {
+  ref: string;
+}
+
 export interface DailyNote {
   exists: boolean;
   path: string;
   date: string;
-  bullets: ParsedBullet[];
+  bullets: NoteBullet[];
   unrecognized: UnrecognizedLine[];
 }
 
@@ -48,7 +55,18 @@ export function readDailyNote(config: VaultConfig, date: string): DailyNote {
   if (content === null) return { exists: false, path, date, bullets: [], unrecognized: [] };
   const parsed = parseDailyNote(content);
   assertSupported(parsed, path);
-  return { exists: true, path, date, bullets: parsed.bullets, unrecognized: parsed.unrecognized };
+  return {
+    exists: true,
+    path,
+    date,
+    bullets: withRefs(parsed.bullets, date),
+    unrecognized: parsed.unrecognized,
+  };
+}
+
+/** Adds each bullet's ref, which the `task` commands take to find it again. */
+export function withRefs(bullets: readonly ParsedBullet[], date: string): NoteBullet[] {
+  return bullets.map((b) => ({ ...b, ref: formatRef(date, b.line, fingerprint(b)) }));
 }
 
 export function addCapture(
@@ -93,7 +111,7 @@ export function addCapture(
   return result;
 }
 
-function readIfExists(path: string): string | null {
+export function readIfExists(path: string): string | null {
   try {
     return readFileSync(path, "utf8");
   } catch (error) {
@@ -102,7 +120,7 @@ function readIfExists(path: string): string | null {
   }
 }
 
-function assertSupported(parsed: ParsedNote, path: string): void {
+export function assertSupported(parsed: ParsedNote, path: string): void {
   if (parsed.version !== null && parsed.version <= FORMAT_VERSION) return;
   throw new DibujoError(
     "NOTE_VERSION_UNSUPPORTED",

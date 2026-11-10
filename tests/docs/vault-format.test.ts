@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseBulletLine } from "../../src/bujo/bullet.js";
+import { formatBullet, parseBulletLine } from "../../src/bujo/bullet.js";
 import { parseCapture } from "../../src/bujo/capture.js";
 import { parseDailyNote } from "../../src/bujo/note.js";
 
@@ -35,6 +35,22 @@ describe("docs/vault-format.md", () => {
         depth: 0,
       },
       { type: "task", state: "completed", signifiers: [], text: "send invoice to Ana", depth: 0 },
+      {
+        type: "task",
+        state: "open",
+        signifiers: [],
+        text: "renew passport",
+        depth: 0,
+        origin: { date: "2026-11-08", blockId: "k3f9a1" },
+      },
+      {
+        type: "task",
+        state: "scheduled",
+        signifiers: [],
+        text: "book flights",
+        depth: 0,
+        scheduled: "2026-11-20",
+      },
       { type: "event", signifiers: [], text: "dentist at 3pm", depth: 0 },
       {
         type: "note",
@@ -75,5 +91,35 @@ describe("docs/vault-format.md", () => {
 
   it("has a capture input example that passes validation", () => {
     expect(() => parseCapture(blockAfter("## Capture input", "json"))).not.toThrow();
+  });
+
+  it("has a task fields example that parses every field and formats back the same", () => {
+    const line = blockAfter("### Task fields", "markdown").trimEnd();
+    const bullet = parseBulletLine(line);
+    expect(bullet).toEqual({
+      type: "task",
+      state: "scheduled",
+      signifiers: ["priority"],
+      text: "call the bank",
+      depth: 0,
+      origin: { date: "2026-11-08", blockId: "k3f9a1" },
+      scheduled: "2026-11-20",
+      blockId: "p07c2e",
+    });
+    expect(bullet && formatBullet(bullet, { folder: "Bujo" })).toBe(line);
+  });
+
+  it("has a migration example where the copy links to the original", () => {
+    const [before, after] = blockAfter("## Migration", "markdown")
+      .trimEnd()
+      .split("\n")
+      .map((l) => parseBulletLine(l.replace(/^\d{4}-\d{2}-\d{2}:\s+/, "")));
+    expect(before).toMatchObject({ state: "migrated", blockId: "r1a2b3" });
+    expect(after).toMatchObject({
+      state: "open",
+      text: before?.text,
+      signifiers: before?.signifiers,
+      origin: { date: "2026-11-09", blockId: "r1a2b3" },
+    });
   });
 });

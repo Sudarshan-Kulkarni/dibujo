@@ -1,5 +1,5 @@
-import type { Bullet } from "../bujo/types.js";
 import { readDailyNote } from "../vault/daily.js";
+import { humanBullet } from "./bullet-symbols.js";
 import type { Ctx } from "./context.js";
 import { Output } from "./output.js";
 import type { Register } from "./program.js";
@@ -37,30 +37,4 @@ export function runLogShow(ctx: Ctx, options: LogShowOptions): void {
     for (const u of note.unrecognized) lines.push(`  line ${u.line}: ${u.text.trim()}`);
   }
   out.success(note, lines);
-}
-
-const TASK_SYMBOLS: Readonly<Record<NonNullable<Bullet["state"]>, string>> = {
-  open: "•",
-  completed: "×",
-  migrated: ">",
-  scheduled: "<",
-  cancelled: "~",
-};
-
-const SIGNIFIER_SYMBOLS = { priority: "*", inspiration: "!" } as const;
-
-/** Bullet Journal style: signifiers in the left margin, then the bullet symbol and text. */
-function humanBullet(bullet: Bullet): string {
-  const margin = bullet.signifiers
-    .map((s) => SIGNIFIER_SYMBOLS[s])
-    .join("")
-    .padEnd(2);
-  const symbol =
-    bullet.type === "task"
-      ? TASK_SYMBOLS[bullet.state ?? "open"]
-      : bullet.type === "event"
-        ? "○"
-        : "–";
-  const suffix = bullet.state === "cancelled" ? "  (cancelled)" : "";
-  return `${margin}${"  ".repeat(bullet.depth)}${symbol} ${bullet.text}${suffix}`;
 }

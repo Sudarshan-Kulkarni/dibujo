@@ -209,7 +209,7 @@ Migration touches two notes, and the filesystem has no transaction that covers b
 | Source written | Source `[>] … ^id`, no copy in target | The ref still resolves, because the fingerprint ignores state and block id. The root counts as a resumed migration, and the target block is added. |
 | Both written | Done | Source and target `unchanged` |
 
-The target block is always written in one atomic write, so checking for the root's copy is enough to dedupe the whole block.
+The target block is always written in one atomic write, so checking for the root's copy is enough to dedupe the whole block. Once the copy is there, the migration is finished and neither note is changed again. A rerun can't tell this run's `[>]` children from ones migrated on an earlier day, so it must not apply new source edits.
 
 Appending to the Log without a capture callout needs a new pure function, `appendLogLines(original, lines)`, in `note.ts`. It shares `appendToSection` and the `isSubsequence` guard with `appendCapture`. No callout is written, because a migration isn't a capture.
 

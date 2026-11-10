@@ -6,14 +6,17 @@ dibujo/
 ├── .kiro/specs/             # feature specs (requirements, design, tasks)
 ├── .kiro/skills/            # dev install of skills/ (gitignored, written by `skills install`)
 ├── skills/                  # agent skills, one folder per skill
-│   └── daily-log/
+│   ├── daily-log/
+│   │   └── SKILL.md
+│   └── morning-planning/
 │       └── SKILL.md         # later: reflect/, migrate/, review/
 ├── docs/
 │   └── vault-format.md      # single source of truth for note format and bullet syntax
 ├── src/
-│   ├── cli/                 # index.ts (shebang), program.ts, context.ts, output.ts, one file per command
-│   ├── bujo/                # pure logic: bullets, capture schema, note sections, journal date
-│   ├── vault/               # filesystem layer: safe paths, atomic writes, daily notes
+│   ├── cli/                 # index.ts (shebang), program.ts, context.ts, output.ts, one file per command (log-*, task-*)
+│   ├── bujo/                # pure logic: bullets and task fields, capture schema, note sections, refs,
+│   │                        #   line edits (edit.ts), migration planning (migrate.ts), journal date
+│   ├── vault/               # filesystem layer: safe paths, atomic writes, daily notes, task operations (tasks.ts)
 │   ├── skills/              # harness table and skill installer
 │   ├── notify/              # later: notification channels (Discord, etc.)
 │   ├── config.ts            # config file + env loading and validation (zod)

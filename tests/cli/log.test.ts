@@ -54,7 +54,10 @@ describe("dibujo log add", () => {
     };
     expect(shown.data.exists).toBe(true);
     expect(shown.data.unrecognized).toEqual([]);
-    expect(shown.data.bullets.map(({ line: _line, ...b }) => b)).toEqual([
+    expect(
+      shown.data.bullets.every((b) => /^2026-11-09:\d+:[0-9a-f]{8}$/.test(String(b.ref))),
+    ).toBe(true);
+    expect(shown.data.bullets.map(({ line: _line, ref: _ref, ...b }) => b)).toEqual([
       { type: "task", state: "open", signifiers: ["priority"], text: "call the bank", depth: 0 },
       { type: "event", signifiers: [], text: "dentist at 3pm", depth: 0 },
       {

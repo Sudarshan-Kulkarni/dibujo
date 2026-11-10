@@ -44,7 +44,7 @@ export function planMigration(
   const bullets = parseDailyNote(source).bullets;
   const rootIndex = bullets.findIndex((b) => b.line === rootLine);
   const root = bullets[rootIndex];
-  if (!root || root.type !== "task") throw new Error("planMigration needs a task line");
+  if (root?.type !== "task") throw new Error("planMigration needs a task line");
   // A root that's already `[>]` with a block id means an earlier run wrote the
   // source note but not the target. Only then are `[>]` children copied again.
   const resuming = root.state === "migrated" && root.blockId !== undefined;
