@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runCli } from "../../src/cli/program.js";
@@ -68,7 +68,14 @@ describe("dibujo task", () => {
     expect((await w.run("task", "set", ref("old plan"), "cancelled")).code).toBe(0);
     expect(
       (await w.run("task", "schedule", ref("renew passport"), "2026-12-01")).json,
-    ).toMatchObject({ ok: true, data: { status: "updated", scheduled: "2026-12-01" } });
+    ).toMatchObject({
+      ok: true,
+      data: {
+        status: "updated",
+        scheduled: "2026-12-01",
+        future: { action: "added", status: "created", year: "2026" },
+      },
+    });
     expect((await w.run("task", "migrate", ref("call the bank"))).json).toMatchObject({
       ok: true,
       data: { status: "migrated", migrated: 2, copied: 2, target: { date: "2026-11-10" } },
@@ -135,6 +142,7 @@ describe("dibujo task", () => {
     expect(String(migrate.json.data.targetContent)).toContain("from 2026-11-09]]");
     expect(w.read("2026-11-09")).toBe(before);
     expect(() => w.read("2026-11-10")).toThrow();
+    expect(existsSync(join(w.vault, "Bujo", "Future", "2026.md"))).toBe(false);
   });
 
   it.each<[string, string[], string, number]>([

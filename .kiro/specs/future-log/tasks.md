@@ -92,9 +92,9 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - A property: running `migrateEntry` or `rescheduleEntry` twice leaves the same files as running it once, for generated waiting entries.
   - _Requirements: 4.1 to 4.10_
 
-- [ ] 7. Scheduling also writes the future log
+- [x] 7. Scheduling also writes the future log
   - _Depends on: 6_
-  - [ ] 7.1 Change `scheduleTask` in `src/vault/tasks.ts`, following "Scheduling a task" in the design.
+  - [x] 7.1 Change `scheduleTask` in `src/vault/tasks.ts`, following "Scheduling a task" in the design.
     - The daily edit is the existing one plus a block id, using `addBlockId` and reusing an existing id.
     - Load all future log notes with `loadFutureNotes`, and find the live entry with `findLive`. Then do the case that matches:
 
@@ -108,8 +108,8 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - Check every note's version before the first write. Write the daily note first, then the future log, using `commitWrites`.
     - The result gets a `future` field: `{ path, year, action: "added" | "rescheduled" | "unchanged", status }`. A dry run also returns `futureContent`. Keep the existing fields.
     - Accept an optional `newId` option for tests, with `randomBlockId` as the default.
-  - [ ] 7.2 Fix the existing scheduling tests in `tests/vault/tasks.test.ts` and `tests/cli/task.test.ts` that assumed only the daily note changes.
-  - [ ] 7.3 Tests in `tests/vault/tasks.test.ts` (core only):
+  - [x] 7.2 Fix the existing scheduling tests in `tests/vault/tasks.test.ts` and `tests/cli/task.test.ts` that assumed only the daily note changes.
+  - [x] 7.3 Tests in `tests/vault/tasks.test.ts` (core only):
     - Scheduling a task creates the future note with the entry in the right month, the daily task has a block id, and the entry's link points at it.
     - Scheduling the same task and date again changes nothing.
     - A task that was scheduled before this spec (`[<] ⏳ date`, no entry) gets its entry on a rerun, and the daily note is reported unchanged.
