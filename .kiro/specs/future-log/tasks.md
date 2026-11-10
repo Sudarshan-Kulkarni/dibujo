@@ -45,16 +45,16 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 3.2 No new tests. All existing tests must pass unchanged, which proves daily notes behave the same.
   - _Requirements: 6.2_
 
-- [ ] 4. Future log note logic (pure)
+- [x] 4. Future log note logic (pure)
   - _Depends on: 2, 3_
-  - [ ] 4.1 Create `src/bujo/future.ts`. Follow "Pure logic" in the design.
+  - [x] 4.1 Create `src/bujo/future.ts`. Follow "Pure logic" in the design.
     - `monthHeading("2026-12")` returns `## 2026-12 December`. Use a fixed list of English month names.
     - `newFutureTemplate(year)` writes the frontmatter (`dibujo`, `type: future`, `year`) and the 12 month sections.
     - `parseFutureNote(content)` returns `{ version, entries, unrecognized }`. An entry is a bullet under a `## YYYY-MM …` heading, and it gets a `month` and its 1-based `line`. Non-bullet lines in a month section are unrecognized. Everything outside month sections is ignored.
     - `appendFutureEntries(original, month, lines)` appends after the last non-blank line of the month's section. When the section is missing, it adds the heading in calendar order. It checks that every original line is still there, in order, as `appendCapture` does.
     - `dueEntries(entries, today)` keeps task entries in state open with a `⏳` date on or before today, sorted by date and then by position.
     - `findLive(entries, from)` finds the live entry for an origin, as described in "Scheduling a task". It returns `{ kind: "waiting" | "resume", entry }` or `null`, and uses a visited set against loops.
-  - [ ] 4.2 Tests in `tests/bujo/future.test.ts` (core only):
+  - [x] 4.2 Tests in `tests/bujo/future.test.ts` (core only):
     - The template has 12 months in order, and parses as an empty note.
     - Parsing reads entries per month and reports an unrecognized line.
     - Appending to a missing month inserts its heading in calendar order.
