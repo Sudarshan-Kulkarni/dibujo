@@ -1,4 +1,11 @@
-import { addDays as addCalendarDays, format, isValid, parse, subDays } from "date-fns";
+import {
+  addDays as addCalendarDays,
+  differenceInCalendarDays,
+  format,
+  isValid,
+  parse,
+  subDays,
+} from "date-fns";
 import { DibujoError } from "../errors.js";
 
 const DATE_FORMAT = "yyyy-MM-dd";
@@ -39,7 +46,19 @@ export function localTime(now: Date): string {
  * noon, so DST changes (which happen at night) can never move it to another day.
  */
 export function addDays(date: string, n: number): string {
+  return format(addCalendarDays(atNoon(date), n), DATE_FORMAT);
+}
+
+/**
+ * The number of calendar days from one `YYYY-MM-DD` date to another. It is negative
+ * when `to` is before `from`. Both dates are anchored at local noon, like `addDays`,
+ * so DST changes can never alter the result.
+ */
+export function daysBetween(from: string, to: string): number {
+  return differenceInCalendarDays(atNoon(to), atNoon(from));
+}
+
+function atNoon(date: string): Date {
   const [year, month, day] = date.split("-").map(Number);
-  const noon = new Date(year ?? 0, (month ?? 1) - 1, day ?? 1, 12);
-  return format(addCalendarDays(noon, n), DATE_FORMAT);
+  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1, 12);
 }

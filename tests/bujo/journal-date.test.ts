@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addDays, journalDate, localTime, parseDateArg } from "../../src/bujo/journal-date.js";
+import {
+  addDays,
+  daysBetween,
+  journalDate,
+  localTime,
+  parseDateArg,
+} from "../../src/bujo/journal-date.js";
 import { DibujoError } from "../../src/errors.js";
 
 // Pin a time zone with DST so the tests mean the same thing on every machine.
@@ -106,5 +112,18 @@ describe("addDays", () => {
     expect(addDays("2026-11-01", -1)).toBe("2026-10-31");
     expect(addDays("2026-11-02", -1)).toBe("2026-11-01");
     expect(addDays("2026-10-31", 1)).toBe("2026-11-01");
+  });
+});
+
+describe("daysBetween", () => {
+  it("counts calendar days across month ends, leap days, and DST changes", () => {
+    expect(daysBetween("2026-11-09", "2026-11-09")).toBe(0);
+    expect(daysBetween("2026-01-31", "2026-02-01")).toBe(1);
+    expect(daysBetween("2026-12-30", "2027-01-02")).toBe(3);
+    expect(daysBetween("2028-02-28", "2028-03-01")).toBe(2); // 2028-02-29 exists
+    expect(daysBetween("2026-02-28", "2026-03-01")).toBe(1);
+    expect(daysBetween("2026-03-07", "2026-03-09")).toBe(2); // DST starts 03-08
+    expect(daysBetween("2026-10-31", "2026-11-02")).toBe(2); // DST ends 11-01
+    expect(daysBetween("2026-11-09", "2026-11-02")).toBe(-7);
   });
 });

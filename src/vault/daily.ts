@@ -7,7 +7,6 @@ import {
   FORMAT_VERSION,
   newNoteTemplate,
   type ParsedBullet,
-  type ParsedNote,
   parseDailyNote,
   type UnrecognizedLine,
 } from "../bujo/note.js";
@@ -120,7 +119,7 @@ export function readIfExists(path: string): string | null {
   }
 }
 
-export function assertSupported(parsed: ParsedNote, path: string): void {
+export function assertSupported(parsed: { version: number | null }, path: string): void {
   if (parsed.version !== null && parsed.version <= FORMAT_VERSION) return;
   throw new DibujoError(
     "NOTE_VERSION_UNSUPPORTED",
