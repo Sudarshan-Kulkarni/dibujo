@@ -16,6 +16,8 @@ export interface CommitOptions {
    * can throw to simulate a crash between two writes.
    */
   afterWrite?: (index: number) => void;
+  /** Test hooks for each write, by index. A write's own `hooks` take priority. */
+  writeHooks?: readonly (WriteHooks | undefined)[];
 }
 
 /** What `commitWrites` would report for a write, without writing anything. */
@@ -36,9 +38,10 @@ export function commitWrites(
 ): WriteStatus[] {
   return writes.map((write, index) => {
     const status = writeStatus(write);
-    if (status === "created") writeNew(write.path, write.content, write.hooks);
+    const hooks = write.hooks ?? options.writeHooks?.[index];
+    if (status === "created") writeNew(write.path, write.content, hooks);
     else if (status === "updated" && write.original !== null) {
-      replaceIfUnchanged(write.path, write.original, write.content, write.hooks);
+      replaceIfUnchanged(write.path, write.original, write.content, hooks);
     }
     options.afterWrite?.(index);
     return status;

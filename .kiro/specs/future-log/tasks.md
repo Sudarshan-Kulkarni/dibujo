@@ -73,18 +73,18 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 5.3 One test in `tests/vault/future.test.ts`: with notes for 2025 and 2026, an entry dated 2025-12-30 and one dated 2026-01-02, plus a future-dated entry, an undated entry, and a handled entry, `dueEntriesFor` returns only the two overdue ones, in date order. The same two come back again for a later "today" until one of them is marked handled in the file.
   - _Requirements: 3.1 to 3.9_
 
-- [ ] 6. Handling entries: migrate, reschedule, cancel
+- [x] 6. Handling entries: migrate, reschedule, cancel
   - _Depends on: 5_
-  - [ ] 6.1 In `src/vault/future.ts`, add `resolveEntryRef(config, ref)`. It resolves like `resolveRef` for daily tasks: by line and fingerprint first, then by the one entry with that fingerprint, otherwise `TASK_NOT_FOUND`. It throws `NOT_A_TASK` for an event or a note.
-  - [ ] 6.2 Add `migrateEntry(config, ref, { to, priority, dryRun, now, hooks, newId })`. Follow "Migrate to a daily log" in the design:
+  - [x] 6.1 In `src/vault/future.ts`, add `resolveEntryRef(config, ref)`. It resolves like `resolveRef` for daily tasks: by line and fingerprint first, then by the one entry with that fingerprint, otherwise `TASK_NOT_FOUND`. It throws `NOT_A_TASK` for an event or a note.
+  - [x] 6.2 Add `migrateEntry(config, ref, { to, priority, dryRun, now, hooks, newId })`. Follow "Migrate to a daily log" in the design:
     - Check every note that will be written, including the target daily note, before the first write.
     - Write the future log first (the entry becomes `[>]` and gets a block id), then the daily note (an open task with a future origin link, the entry's text and signifiers, no `⏳` date, plus `priority` with `priority`).
     - The target defaults to today's journal date and must be today or later.
     - Accept a waiting entry, or one that is `[>]` with a block id (a resumed run). Skip the target write when a task with that origin already exists.
-  - [ ] 6.3 Add `planReschedule(...)`, which returns the planned writes, and `rescheduleEntry(config, ref, date, options)`, which runs them. Follow "Reschedule" in the design: the old entry becomes `[<]` with a block id, and a new waiting entry with a future link to it goes in the new date's month. For the same year, put both changes in one write. For a different year, write the old note first. The new date must be later than today. Accept a waiting entry, or a `[<]` entry with a block id and no copy (a resumed run). If a copy already exists, report `unchanged`. `planReschedule` is separate so `scheduleTask` can reuse it in task 7.
-  - [ ] 6.4 Add `cancelEntry(config, ref, options)`: a waiting entry becomes `[-]`, a cancelled one is `unchanged`, and anything else is `TASK_NOT_OPEN`.
-  - [ ] 6.5 Refuse before writing when `config.folder` contains `[`, `]`, `|`, `#`, or `^`, with `CONFIG_INVALID`, as `migrateTask` does.
-  - [ ] 6.6 Tests in `tests/vault/future.test.ts` (core only):
+  - [x] 6.3 Add `planReschedule(...)`, which returns the planned writes, and `rescheduleEntry(config, ref, date, options)`, which runs them. Follow "Reschedule" in the design: the old entry becomes `[<]` with a block id, and a new waiting entry with a future link to it goes in the new date's month. For the same year, put both changes in one write. For a different year, write the old note first. The new date must be later than today. Accept a waiting entry, or a `[<]` entry with a block id and no copy (a resumed run). If a copy already exists, report `unchanged`. `planReschedule` is separate so `scheduleTask` can reuse it in task 7.
+  - [x] 6.4 Add `cancelEntry(config, ref, options)`: a waiting entry becomes `[-]`, a cancelled one is `unchanged`, and anything else is `TASK_NOT_OPEN`.
+  - [x] 6.5 Refuse before writing when `config.folder` contains `[`, `]`, `|`, `#`, or `^`, with `CONFIG_INVALID`, as `migrateTask` does.
+  - [x] 6.6 Tests in `tests/vault/future.test.ts` (core only):
     - `migrateEntry` into a new daily note, then the same call again: both notes unchanged the second time.
     - `migrateEntry` interrupted after the future log write (use `commitWrites`'s `afterWrite`), then run again: one copy only.
     - `rescheduleEntry` in the same year, and across years with an interruption after the first write and a rerun that adds exactly one new entry.

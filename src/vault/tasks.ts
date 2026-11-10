@@ -1,4 +1,3 @@
-import { randomInt } from "node:crypto";
 import { fingerprint } from "../bujo/bullet.js";
 import { applyLineEdits, setCheckbox, setScheduled } from "../bujo/edit.js";
 import { addDays, journalDate, parseDateArg } from "../bujo/journal-date.js";
@@ -16,8 +15,11 @@ import type { Bullet, Signifier, TaskState } from "../bujo/types.js";
 import type { VaultConfig } from "../config.js";
 import { DibujoError, isDibujoError } from "../errors.js";
 import { replaceIfUnchanged, type WriteHooks, writeNew } from "./atomic-write.js";
+import { randomBlockId } from "./block-id.js";
 import { assertSupported, readIfExists } from "./daily.js";
-import { dailyNotePath } from "./paths.js";
+import { assertLinkSafeFolder, dailyNotePath } from "./paths.js";
+
+export { randomBlockId };
 
 /** A task found on disk from a ref. */
 export interface ResolvedTask {
@@ -180,8 +182,6 @@ export interface MigrateResult {
   targetContent?: string;
 }
 
-const UNSAFE_LINK_CHARS = /[[\]|#^]/;
-
 /**
  * Migrates a task and what's nested under it to another daily note. The source
  * note is written first and the target second, so running the same command
@@ -192,13 +192,7 @@ export function migrateTask(
   ref: string,
   options: MigrateOptions,
 ): MigrateResult {
-  if (UNSAFE_LINK_CHARS.test(config.folder)) {
-    throw new DibujoError(
-      "CONFIG_INVALID",
-      `The dibujo folder "${config.folder}" contains a character that breaks Obsidian links ([ ] | # ^).`,
-      "Rename the folder and run `dibujo init --force --folder <name>`. Nothing was written.",
-    );
-  }
+  assertLinkSafeFolder(config);
   const task = resolveRef(config, ref);
   const to =
     options.to === undefined
@@ -267,15 +261,6 @@ export function migrateTask(
     replaceIfUnchanged(targetPath, targetOriginal, targetContent, options.hooks?.target);
   }
   return result;
-}
-
-const ID_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
-
-/** Six random base36 characters, like the block ids Obsidian makes. */
-export function randomBlockId(): string {
-  let id = "";
-  for (let i = 0; i < 6; i++) id += ID_ALPHABET[randomInt(ID_ALPHABET.length)];
-  return id;
 }
 
 export interface ReviewChild {
