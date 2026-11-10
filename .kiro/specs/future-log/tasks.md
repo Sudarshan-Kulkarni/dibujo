@@ -63,14 +63,14 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `findLive` over four cases: no entry, a waiting entry, a rescheduled chain ending in a waiting entry, and an interrupted reschedule.
   - _Requirements: 1.1 to 1.7, 1.9, 3.5, 3.6_
 
-- [ ] 5. Reading the future log (vault layer)
+- [x] 5. Reading the future log (vault layer)
   - _Depends on: 4_
-  - [ ] 5.1 Create `src/vault/write-plan.ts` with `commitWrites(writes, options)`. A write is `{ path, original: string | null, content, hooks? }`. A write with `original === null` goes through `writeNew`, a changed one through `replaceIfUnchanged`, and an unchanged one is skipped. Return each note's status (`created`, `updated`, or `unchanged`). Add an optional `afterWrite(index)` callback that only tests use, to simulate a crash between writes.
-  - [ ] 5.2 Create `src/vault/future.ts` with:
+  - [x] 5.1 Create `src/vault/write-plan.ts` with `commitWrites(writes, options)`. A write is `{ path, original: string | null, content, hooks? }`. A write with `original === null` goes through `writeNew`, a changed one through `replaceIfUnchanged`, and an unchanged one is skipped. Return each note's status (`created`, `updated`, or `unchanged`). Add an optional `afterWrite(index)` callback that only tests use, to simulate a crash between writes.
+  - [x] 5.2 Create `src/vault/future.ts` with:
     - `loadFutureNotes(config, { throughYear? })`: list `<folder>/Future/`, keep names that match `YYYY.md`, read and parse each one, and call `assertSupported`. A missing folder gives an empty list. An unsupported note throws `NOTE_VERSION_UNSUPPORTED` naming its path.
     - `readFutureNote(config, year)`: the view for `future show`, with `exists`, `path`, `year`, the months that have entries, each entry with its `ref` (`formatFutureRef` plus `fingerprint`), and the unrecognized lines.
     - `dueEntriesFor(config, today)`: load the notes for today's year and every earlier year, run `dueEntries`, and return each entry with `ref`, `text`, `signifiers`, `scheduled`, `daysOverdue` (using `daysBetween`), `scheduledFrom`, and `path`. `scheduledFrom` follows future origins across the loaded notes to a daily origin, with a visited set, and is `null` when the chain breaks.
-  - [ ] 5.3 One test in `tests/vault/future.test.ts`: with notes for 2025 and 2026, an entry dated 2025-12-30 and one dated 2026-01-02, plus a future-dated entry, an undated entry, and a handled entry, `dueEntriesFor` returns only the two overdue ones, in date order. The same two come back again for a later "today" until one of them is marked handled in the file.
+  - [x] 5.3 One test in `tests/vault/future.test.ts`: with notes for 2025 and 2026, an entry dated 2025-12-30 and one dated 2026-01-02, plus a future-dated entry, an undated entry, and a handled entry, `dueEntriesFor` returns only the two overdue ones, in date order. The same two come back again for a later "today" until one of them is marked handled in the file.
   - _Requirements: 3.1 to 3.9_
 
 - [ ] 6. Handling entries: migrate, reschedule, cancel
