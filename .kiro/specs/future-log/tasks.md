@@ -126,15 +126,15 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 8.4 One end-to-end test in `tests/cli/future.test.ts`, in the style of `tests/cli/task.test.ts`. Run `task schedule` on three tasks, move the clock past their dates, and check that `future due --json` lists them. Then run `future migrate`, `future reschedule`, and `future cancel`, one on each. Check that `future due` is empty afterward, that `future show --json` shows the right states, and that `log show --json` for today lists the migrated task with a future origin. Every `--json` output must parse. In the same file, check that giving a daily ref to `future cancel` exits with code 2.
   - _Requirements: 3, 4, 2.9_
 
-- [ ] 9. Vault format document
+- [x] 9. Vault format document
   - _Depends on: 8. Can run at the same time as task 10._
-  - [ ] 9.1 Update `docs/vault-format.md`:
+  - [x] 9.1 Update `docs/vault-format.md`:
     - Add a "Future log" section: the location, the frontmatter, the month headings, the entry states, and how a due entry is decided (the `⏳` date, not the section).
     - Document the future link form next to the daily form, and the field order.
     - Update "Migration" or add a short section on how scheduling and coming back work.
     - Add a warning that renaming the dibujo folder outside Obsidian breaks both kinds of links.
     - Update "How dibujo writes to a note" and "Versioning" to cover the future log and say the version stays 1.
-  - [ ] 9.2 In `tests/docs/vault-format.test.ts`, add one test that parses the future log example from the document and checks that its daily-to-future and future-to-daily links point at each other's block ids.
+  - [x] 9.2 In `tests/docs/vault-format.test.ts`, add one test that parses the future log example from the document and checks that its daily-to-future and future-to-daily links point at each other's block ids.
   - _Requirements: 6.1 to 6.3_
 
 - [ ] 10. Update the `morning-planning` skill
