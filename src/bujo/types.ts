@@ -14,6 +14,18 @@ export interface Bullet {
   text: string;
   /** Nesting level. 0 is top level. */
   depth: number;
+  /** Tasks only: the task this one was migrated from. */
+  origin?: Origin;
+  /** Tasks only: Tasks-plugin scheduled date (`⏳ YYYY-MM-DD`). */
+  scheduled?: string;
+  /** Obsidian block id (`^id`) at the end of the line, without the caret. */
+  blockId?: string;
+}
+
+/** Points at a task in another daily note: the note's date and the task's block id. */
+export interface Origin {
+  date: string;
+  blockId: string;
 }
 
 /** Highest nesting level the CLI writes. Deeper levels are still read. */

@@ -16,6 +16,7 @@ function setup(): { config: VaultConfig; path: string } {
     vaultPath: tempDir("dibujo-vault-"),
     folder: "Bujo",
     dayStartHour: 0,
+    migrationFlagDays: 3,
   };
   return { config, path: dailyNotePath(config, date) };
 }

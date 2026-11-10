@@ -1,5 +1,11 @@
 /** Error codes that mean the caller used the CLI wrongly. Exit code 2. */
-const USAGE_CODES = ["USAGE", "INVALID_INPUT", "INVALID_DATE", "UNKNOWN_HARNESS"] as const;
+const USAGE_CODES = [
+  "USAGE",
+  "INVALID_INPUT",
+  "INVALID_DATE",
+  "INVALID_REF",
+  "UNKNOWN_HARNESS",
+] as const;
 
 /** Error codes for runtime failures. Exit code 1. */
 const RUNTIME_CODES = [
@@ -9,6 +15,9 @@ const RUNTIME_CODES = [
   "VAULT_NOT_FOUND",
   "NOTE_CHANGED",
   "NOTE_VERSION_UNSUPPORTED",
+  "TASK_NOT_FOUND",
+  "NOT_A_TASK",
+  "TASK_NOT_OPEN",
   "INTERNAL",
 ] as const;
 

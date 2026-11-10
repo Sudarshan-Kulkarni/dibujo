@@ -23,12 +23,14 @@ export function runConfigShow(ctx: Ctx, options: ConfigShowOptions): void {
     vaultPath: config.vaultPath,
     folder: config.folder,
     dayStartHour: config.dayStartHour,
+    migrationFlagDays: config.migrationFlagDays,
   };
 
   out.success({ configPath: config.path, fileExists: config.fileExists, values }, [
     `Config file: ${config.path}${config.fileExists ? "" : " (not created yet, run `dibujo init`)"}`,
-    `  vaultPath     ${config.vaultPath.value ?? "(not set)"}  (${config.vaultPath.source})`,
-    `  folder        ${config.folder.value}  (${config.folder.source})`,
-    `  dayStartHour  ${config.dayStartHour.value}  (${config.dayStartHour.source})`,
+    `  vaultPath          ${config.vaultPath.value ?? "(not set)"}  (${config.vaultPath.source})`,
+    `  folder             ${config.folder.value}  (${config.folder.source})`,
+    `  dayStartHour       ${config.dayStartHour.value}  (${config.dayStartHour.source})`,
+    `  migrationFlagDays  ${config.migrationFlagDays.value}  (${config.migrationFlagDays.source})`,
   ]);
 }

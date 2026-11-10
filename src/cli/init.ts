@@ -7,10 +7,12 @@ import {
   DayStartHourSchema,
   DEFAULT_DAY_START_HOUR,
   DEFAULT_FOLDER,
+  DEFAULT_MIGRATION_FLAG_DAYS,
   FolderSchema,
   isDirectory,
   type LoadedConfig,
   loadConfig,
+  MigrationFlagDaysSchema,
   saveConfig,
 } from "../config.js";
 import { DibujoError, isDibujoError } from "../errors.js";
@@ -22,6 +24,7 @@ interface InitOptions {
   vault?: string;
   folder?: string;
   dayStart?: string;
+  flagAfterDays?: string;
   force?: boolean;
   json?: boolean;
 }
@@ -36,6 +39,10 @@ export const registerInit: Register = (program, ctx) => {
       `folder inside the vault for dibujo notes (default: ${DEFAULT_FOLDER})`,
     )
     .option("--day-start <hour>", "hour (0-23) when a new journal day starts (default: 0)")
+    .option(
+      "--flag-after-days <days>",
+      `flag a task once it's been migrated this many days in a row (default: ${DEFAULT_MIGRATION_FLAG_DAYS})`,
+    )
     .option("--force", "replace an existing config without asking")
     .option("--json", "print the result as JSON")
     .action((options: InitOptions) => runInit(ctx, options));
@@ -92,6 +99,11 @@ export async function runInit(ctx: Ctx, options: InitOptions): Promise<void> {
   const vaultPath = resolve(ctx.cwd, expandHome(vaultInput, ctx.homedir));
   const folder = parseFolder(folderInput);
   const dayStartHour = parseDayStart(dayStartInput);
+  // No prompt for this one: it keeps the setup short. Use the flag, or keep what's there.
+  const migrationFlagDays =
+    options.flagAfterDays !== undefined
+      ? parseFlagDays(options.flagAfterDays)
+      : (existing?.migrationFlagDays.value ?? DEFAULT_MIGRATION_FLAG_DAYS);
 
   if (!isDirectory(vaultPath)) {
     throw new DibujoError(
@@ -106,7 +118,13 @@ export async function runInit(ctx: Ctx, options: InitOptions): Promise<void> {
     );
   }
 
-  const config: ConfigFile = { version: CONFIG_VERSION, vaultPath, folder, dayStartHour };
+  const config: ConfigFile = {
+    version: CONFIG_VERSION,
+    vaultPath,
+    folder,
+    dayStartHour,
+    migrationFlagDays,
+  };
   saveConfig(path, config);
 
   out.success({ configPath: path, replaced: existing !== null || existingInvalid, config }, [
@@ -114,6 +132,7 @@ export async function runInit(ctx: Ctx, options: InitOptions): Promise<void> {
     `  vault:      ${vaultPath}`,
     `  notes:      ${join(vaultPath, folder, "Daily")}`,
     `  day starts: ${String(dayStartHour).padStart(2, "0")}:00`,
+    `  flag after: ${migrationFlagDays} days of migration in a row`,
   ]);
 }
 
@@ -171,11 +190,25 @@ function parseDayStart(value: string): number {
   return result.data;
 }
 
+function parseFlagDays(value: string): number {
+  const number = /^\d{1,3}$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
+  const result = MigrationFlagDaysSchema.safeParse(number);
+  if (!result.success) {
+    throw new DibujoError(
+      "USAGE",
+      `Invalid --flag-after-days "${value}".`,
+      "Use a whole number of days from 2 to 365, for example 3.",
+    );
+  }
+  return result.data;
+}
+
 function describe(config: LoadedConfig): string {
   return [
     `  vault:      ${config.vaultPath.value ?? "(not set)"}`,
     `  folder:     ${config.folder.value}`,
     `  day starts: ${String(config.dayStartHour.value).padStart(2, "0")}:00`,
+    `  flag after: ${config.migrationFlagDays.value} days`,
     "",
   ].join("\n");
 }

@@ -17,6 +17,7 @@ import { DibujoError } from "./errors.js";
 
 export const DEFAULT_FOLDER = "Bujo";
 export const DEFAULT_DAY_START_HOUR = 0;
+export const DEFAULT_MIGRATION_FLAG_DAYS = 3;
 export const CONFIG_VERSION = 1;
 
 export type ValueSource = "default" | "file" | "env";
@@ -32,6 +33,7 @@ export interface LoadedConfig {
   vaultPath: SourcedValue<string | null>;
   folder: SourcedValue<string>;
   dayStartHour: SourcedValue<number>;
+  migrationFlagDays: SourcedValue<number>;
 }
 
 /** Config with a vault that exists. Commands that touch the vault receive this. */
@@ -39,6 +41,8 @@ export interface VaultConfig {
   vaultPath: string;
   folder: string;
   dayStartHour: number;
+  /** Flag a task once it has been migrated this many days in a row. */
+  migrationFlagDays: number;
 }
 
 export interface ConfigFile {
@@ -46,6 +50,7 @@ export interface ConfigFile {
   vaultPath: string;
   folder: string;
   dayStartHour: number;
+  migrationFlagDays: number;
 }
 
 export const FolderSchema = z
@@ -59,6 +64,12 @@ export const FolderSchema = z
 
 export const DayStartHourSchema = z.number().int().min(0).max(23);
 
+export const MigrationFlagDaysSchema = z
+  .number()
+  .int("must be a whole number of days")
+  .min(2, "must be at least 2 days")
+  .max(365, "must be at most 365 days");
+
 export const VaultPathSchema = z
   .string()
   .min(1)
@@ -69,6 +80,7 @@ const ConfigFileSchema = z.object({
   vaultPath: VaultPathSchema,
   folder: FolderSchema.default(DEFAULT_FOLDER),
   dayStartHour: DayStartHourSchema.default(DEFAULT_DAY_START_HOUR),
+  migrationFlagDays: MigrationFlagDaysSchema.default(DEFAULT_MIGRATION_FLAG_DAYS),
 });
 
 interface Env {
@@ -99,6 +111,9 @@ export function loadConfig(env: Env, home: string): LoadedConfig {
     dayStartHour: file
       ? { value: file.dayStartHour, source: "file" }
       : { value: DEFAULT_DAY_START_HOUR, source: "default" },
+    migrationFlagDays: file?.hasFlagDays
+      ? { value: file.migrationFlagDays, source: "file" }
+      : { value: DEFAULT_MIGRATION_FLAG_DAYS, source: "default" },
   };
 
   const envVault = env.DIBUJO_VAULT_PATH;
@@ -137,6 +152,7 @@ export function requireVault(config: LoadedConfig): VaultConfig {
     vaultPath,
     folder: config.folder.value,
     dayStartHour: config.dayStartHour.value,
+    migrationFlagDays: config.migrationFlagDays.value,
   };
 }
 
@@ -170,7 +186,7 @@ export function isDirectory(path: string): boolean {
   }
 }
 
-function readConfigFile(path: string): ConfigFile | null {
+function readConfigFile(path: string): (ConfigFile & { hasFlagDays: boolean }) | null {
   let text: string;
   try {
     text = readFileSync(path, "utf8");
@@ -191,7 +207,9 @@ function readConfigFile(path: string): ConfigFile | null {
       .join("; ");
     throw invalidFile(path, details);
   }
-  return result.data;
+  // Report the threshold as a default when the file predates it.
+  const hasFlagDays = typeof json === "object" && json !== null && "migrationFlagDays" in json;
+  return { ...result.data, hasFlagDays };
 }
 
 function invalidFile(path: string, details: string): DibujoError {

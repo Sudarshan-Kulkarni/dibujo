@@ -36,6 +36,7 @@ Add new dependencies only when they are clearly needed, and prefer these:
 | Version comparison (skill installs) | `semver` |
 | Notifications (when decided) | Discord webhook via `fetch`; `discord.js` only if a two-way bot is needed |
 | Tests (dev) | `vitest`, plus `vite` (a peer dependency npm doesn't install automatically) |
+| Property-based tests (dev) | `fast-check`, for pure logic in `src/bujo/` (round trips, edit guards, idempotence) |
 | Lint and format (dev) | `biome`. Markdown files are excluded in `biome.json`, because its formatter reflows tables and lists in specs, steering, and skills. |
 | Dev runner (dev) | `tsx` |
 

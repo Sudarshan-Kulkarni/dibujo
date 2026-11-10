@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { formatCallout } from "../../src/bujo/capture.js";
-import { appendCapture, newNoteTemplate, parseDailyNote } from "../../src/bujo/note.js";
+import {
+  appendCapture,
+  appendLogLines,
+  newNoteTemplate,
+  parseDailyNote,
+} from "../../src/bujo/note.js";
 import type { Bullet } from "../../src/bujo/types.js";
 
 const bullets: Bullet[] = [
@@ -162,6 +167,54 @@ describe("appendCapture", () => {
   it("works on an empty file", () => {
     const result = appendCapture("", bullets, callout);
     expect(result.startsWith("## Log\n\n- [ ] call the bank")).toBe(true);
+  });
+});
+
+describe("appendLogLines", () => {
+  const added = [
+    "- [ ] call the bank [[Bujo/Daily/2026-11-08#^k3f9a1|from 2026-11-08]]",
+    "\t* at 3pm",
+  ];
+
+  it("fills the Log of a new note and writes no callout", () => {
+    const result = appendLogLines(newNoteTemplate("2026-11-09"), added);
+    expect(result).toBe(
+      [
+        "---",
+        "dibujo: 1",
+        "type: daily",
+        "date: 2026-11-09",
+        "---",
+        "",
+        "## Log",
+        "",
+        ...added,
+        "",
+        "## Captures",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("appends after existing bullets and keeps every original line", () => {
+    const first = appendCapture(newNoteTemplate("2026-11-09"), bullets, callout);
+    const result = appendLogLines(first, added);
+    expect(originalLinesKept(first, result)).toBe(true);
+    expect(result).toContain(`* dentist at 3pm\n${added.join("\n")}\n\n## Captures`);
+    expect(parseDailyNote(result).captureIds).toEqual(["3f9a1b2c"]);
+  });
+
+  it("adds a missing Log section before Captures", () => {
+    const original = "# Monday\n\n## Captures\n\n> [!capture]- 07:00 · aaaaaaaa\n> earlier\n";
+    const result = appendLogLines(original, added);
+    expect(originalLinesKept(original, result)).toBe(true);
+    expect(result.indexOf("## Log")).toBeLessThan(result.indexOf("## Captures"));
+    expect(parseDailyNote(result).bullets).toHaveLength(2);
+  });
+
+  it("keeps Windows line endings", () => {
+    const original = newNoteTemplate("2026-11-09").replace(/\n/g, "\r\n");
+    expect(appendLogLines(original, added)).not.toMatch(/[^\r]\n/);
   });
 });
 

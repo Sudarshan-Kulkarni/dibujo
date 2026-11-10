@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { journalDate, localTime, parseDateArg } from "../../src/bujo/journal-date.js";
+import { addDays, journalDate, localTime, parseDateArg } from "../../src/bujo/journal-date.js";
 import { DibujoError } from "../../src/errors.js";
 
 // Pin a time zone with DST so the tests mean the same thing on every machine.
@@ -78,5 +78,33 @@ describe("localTime", () => {
   it("formats the local time as HH:mm", () => {
     expect(localTime(new Date("2026-11-09T08:42:59"))).toBe("08:42");
     expect(localTime(new Date("2026-11-09T21:05:00"))).toBe("21:05");
+  });
+});
+
+describe("addDays", () => {
+  it.each([
+    ["2026-11-09", -1, "2026-11-08"],
+    ["2026-11-09", 1, "2026-11-10"],
+    ["2026-11-09", 0, "2026-11-09"],
+    ["2026-12-01", -1, "2026-11-30"],
+    ["2026-10-31", 1, "2026-11-01"],
+    ["2027-01-01", -1, "2026-12-31"],
+    ["2026-12-31", 1, "2027-01-01"],
+    ["2024-03-01", -1, "2024-02-29"],
+    ["2024-02-28", 1, "2024-02-29"],
+    ["2025-03-01", -1, "2025-02-28"],
+    ["2026-11-09", -365, "2025-11-09"],
+  ])("%s %+d is %s", (date, n, expected) => {
+    expect(addDays(date, n)).toBe(expected);
+  });
+
+  it("is not moved by DST changes", () => {
+    // DST starts 2026-03-08 and ends 2026-11-01 in New York.
+    expect(addDays("2026-03-08", -1)).toBe("2026-03-07");
+    expect(addDays("2026-03-09", -1)).toBe("2026-03-08");
+    expect(addDays("2026-03-07", 1)).toBe("2026-03-08");
+    expect(addDays("2026-11-01", -1)).toBe("2026-10-31");
+    expect(addDays("2026-11-02", -1)).toBe("2026-11-01");
+    expect(addDays("2026-10-31", 1)).toBe("2026-11-01");
   });
 });

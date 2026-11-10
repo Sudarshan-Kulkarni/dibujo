@@ -1,4 +1,5 @@
-import type { Bullet, Signifier, TaskState } from "./types.js";
+import { createHash } from "node:crypto";
+import type { Bullet, Origin, Signifier, TaskState } from "./types.js";
 
 const CHECKBOX_TO_STATE: Readonly<Record<string, TaskState>> = {
   " ": "open",
@@ -22,7 +23,14 @@ const TASK_LINE = /^(\s*)[-*+] \[(.)\] (.*)$/;
 const CHECKBOX_LIKE = /^\s*[-*+] \[.\]/;
 const EVENT_LINE = /^(\s*)\* (.*)$/;
 const NOTE_LINE = /^(\s*)[-+] (.*)$/;
+
+// Fields at the end of a line. Each needs whitespace before it, so a field can
+// never be the whole text.
 const TRAILING_SIGNIFIER = /\s+#(priority|inspiration)$/i;
+const TRAILING_BLOCK_ID = /\s+\^([A-Za-z0-9-]+)$/;
+const TRAILING_SCHEDULED = /\s+⏳\uFE0F?\s*(\d{4}-\d{2}-\d{2})$/;
+const TRAILING_ORIGIN =
+  /\s+\[\[([^[\]|#]*?)(\d{4}-\d{2}-\d{2})#\^([A-Za-z0-9-]+)(?:\|[^[\]]*)?\]\]$/;
 
 /** Columns per nesting level. A tab counts as one full level. */
 const INDENT_WIDTH = 4;
@@ -56,8 +64,19 @@ export function parseBulletLine(line: string): Bullet | null {
   return null;
 }
 
-/** Formats a bullet as one Markdown line, using a tab per nesting level. */
-export function formatBullet(bullet: Bullet): string {
+export interface FormatOptions {
+  /**
+   * The dibujo folder inside the vault. When set, origin links use the full path
+   * (`<folder>/Daily/<date>`); otherwise they use the note's file name only.
+   */
+  folder?: string;
+}
+
+/**
+ * Formats a bullet as one Markdown line, using a tab per nesting level. Fields go
+ * in a fixed order: text, origin link, signifier tags, scheduled date, block id.
+ */
+export function formatBullet(bullet: Bullet, options: FormatOptions = {}): string {
   const indent = "\t".repeat(bullet.depth);
   const marker =
     bullet.type === "task"
@@ -65,8 +84,38 @@ export function formatBullet(bullet: Bullet): string {
       : bullet.type === "event"
         ? "* "
         : "- ";
+  const origin = bullet.origin ? ` ${formatOriginLink(bullet.origin, options.folder)}` : "";
   const tags = bullet.signifiers.map((s) => ` #${s}`).join("");
-  return `${indent}${marker}${bullet.text}${tags}`;
+  const scheduled = bullet.scheduled ? ` ⏳ ${bullet.scheduled}` : "";
+  const blockId = bullet.blockId ? ` ^${bullet.blockId}` : "";
+  return `${indent}${marker}${bullet.text}${origin}${tags}${scheduled}${blockId}`;
+}
+
+/** `[[<folder>/Daily/<date>#^<id>|from <date>]]`, or without the folder path. */
+export function formatOriginLink(origin: Origin, folder?: string): string {
+  const prefix = folder ? `${folder.replace(/\\/g, "/").replace(/\/+$/, "")}/Daily/` : "";
+  return `[[${prefix}${origin.date}#^${origin.blockId}|from ${origin.date}]]`;
+}
+
+/** The checkbox character written for a task state. */
+export function checkboxFor(state: TaskState): string {
+  return STATE_TO_CHECKBOX[state];
+}
+
+/**
+ * Identifies a bullet by what the user wrote: type, depth, text, signifiers, and
+ * origin. State, scheduled date, and block id are left out, so the fingerprint
+ * survives every change dibujo makes to a line.
+ */
+export function fingerprint(bullet: Bullet): string {
+  const identity = {
+    type: bullet.type,
+    depth: bullet.depth,
+    text: bullet.text,
+    signifiers: [...bullet.signifiers],
+    origin: bullet.origin ? { date: bullet.origin.date, blockId: bullet.origin.blockId } : null,
+  };
+  return createHash("sha256").update(JSON.stringify(identity)).digest("hex").slice(0, 8);
 }
 
 function build(
@@ -75,24 +124,75 @@ function build(
   rest: string,
   state?: TaskState,
 ): Bullet | null {
-  const { text, signifiers } = splitSignifiers(rest);
-  if (text.length === 0) return null;
-  const bullet: Bullet = { type, signifiers, text, depth: depthOf(indent) };
+  const fields = splitFields(rest, type === "task");
+  if (fields.text.length === 0) return null;
+  const bullet: Bullet = {
+    type,
+    signifiers: fields.signifiers,
+    text: fields.text,
+    depth: depthOf(indent),
+  };
   if (state) bullet.state = state;
+  if (fields.origin) bullet.origin = fields.origin;
+  if (fields.scheduled) bullet.scheduled = fields.scheduled;
+  if (fields.blockId) bullet.blockId = fields.blockId;
   return bullet;
 }
 
-/** Removes signifier tags from the end of the text. Tags elsewhere stay in the text. */
-function splitSignifiers(rest: string): { text: string; signifiers: Signifier[] } {
+interface Fields {
+  text: string;
+  signifiers: Signifier[];
+  origin?: Origin;
+  scheduled?: string;
+  blockId?: string;
+}
+
+/**
+ * Removes fields from the end of the text, in any order: signifier tags, block id,
+ * and, on tasks, the scheduled date and origin link. Stops at the first token that
+ * isn't a field. A second block id, date, or link stays in the text.
+ */
+function splitFields(rest: string, isTask: boolean): Fields {
   let text = rest.trimEnd();
   const found: Signifier[] = [];
-  for (let match = TRAILING_SIGNIFIER.exec(text); match; match = TRAILING_SIGNIFIER.exec(text)) {
-    const name = (match[1] ?? "").toLowerCase() as Signifier;
-    found.unshift(name);
-    text = text.slice(0, match.index).trimEnd();
+  const fields: Omit<Fields, "text" | "signifiers"> = {};
+
+  for (;;) {
+    const signifier = TRAILING_SIGNIFIER.exec(text);
+    if (signifier) {
+      found.unshift((signifier[1] ?? "").toLowerCase() as Signifier);
+      text = text.slice(0, signifier.index).trimEnd();
+      continue;
+    }
+    const blockId = fields.blockId === undefined ? TRAILING_BLOCK_ID.exec(text) : null;
+    if (blockId?.[1]) {
+      fields.blockId = blockId[1];
+      text = text.slice(0, blockId.index).trimEnd();
+      continue;
+    }
+    const scheduled =
+      isTask && fields.scheduled === undefined ? TRAILING_SCHEDULED.exec(text) : null;
+    if (scheduled?.[1]) {
+      fields.scheduled = scheduled[1];
+      text = text.slice(0, scheduled.index).trimEnd();
+      continue;
+    }
+    const origin = isTask && fields.origin === undefined ? TRAILING_ORIGIN.exec(text) : null;
+    if (origin?.[2] && origin[3] && isDailyPath(origin[1] ?? "")) {
+      fields.origin = { date: origin[2], blockId: origin[3] };
+      text = text.slice(0, origin.index).trimEnd();
+      continue;
+    }
+    break;
   }
+
   const signifiers = found.filter((value, index) => found.indexOf(value) === index);
-  return { text: text.trim(), signifiers };
+  return { text: text.trim(), signifiers, ...fields };
+}
+
+/** An origin link's path is either empty (file name only) or ends in `Daily/`. */
+function isDailyPath(prefix: string): boolean {
+  return prefix === "" || prefix.endsWith("Daily/");
 }
 
 /** Tabs are one level each. Spaces count in groups of 4, rounding up, so 2-space indents nest too. */

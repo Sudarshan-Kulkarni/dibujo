@@ -67,7 +67,17 @@ describe("parseCapture", () => {
     ["an unknown type", { raw: "r", bullets: [{ type: "idea", text: "x" }] }, "bullets.0.type"],
     ["empty text", { raw: "r", bullets: [{ type: "note", text: " " }] }, "bullets.0.text"],
     ["multi-line text", { raw: "r", bullets: [{ type: "note", text: "a\nb" }] }, "single line"],
+    [
+      "a Unicode line separator",
+      { raw: "r", bullets: [{ type: "note", text: "a\u2028b" }] },
+      "single line",
+    ],
     ["a leading checkbox", { raw: "r", bullets: [{ type: "note", text: "[x] a" }] }, "checkbox"],
+    [
+      "a leading checkbox without a space",
+      { raw: "r", bullets: [{ type: "note", text: "[]]!" }] },
+      "checkbox",
+    ],
     [
       "a reserved tag in text",
       { raw: "r", bullets: [{ type: "note", text: "a #priority" }] },
@@ -105,6 +115,26 @@ describe("parseCapture", () => {
       "depth",
     ],
     ["unknown keys", { raw: "r", bullets: valid.bullets, extra: true }, "extra"],
+    [
+      "a scheduled date in text",
+      { raw: "r", bullets: [{ type: "task", text: "pay rent ⏳ 2026-12-01" }] },
+      "⏳",
+    ],
+    [
+      "a trailing block id",
+      { raw: "r", bullets: [{ type: "task", text: "pay rent ^abc123" }] },
+      "block id",
+    ],
+    [
+      "a trailing block link",
+      { raw: "r", bullets: [{ type: "task", text: "pay rent [[2026-11-08#^abc]]" }] },
+      "block link",
+    ],
+    [
+      "a trailing aliased block link",
+      { raw: "r", bullets: [{ type: "note", text: "see [[Bujo/Daily/2026-11-08#^a1|from]]" }] },
+      "block link",
+    ],
   ])("rejects %s", (_name, input, expected) => {
     expect(invalidMessage(input)).toContain(expected);
   });

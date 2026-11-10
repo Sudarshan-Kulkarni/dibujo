@@ -102,7 +102,34 @@ describe("requireVault", () => {
       vaultPath: vault,
       folder: "Bujo",
       dayStartHour: 0,
+      migrationFlagDays: 3,
     });
+  });
+});
+
+describe("migrationFlagDays", () => {
+  it("loads an older config file without the key, using the default", () => {
+    const home = tempDir();
+    writeConfig(home, { version: 1, vaultPath: "/vault", folder: "Bujo", dayStartHour: 0 });
+    expect(loadConfig({}, home).migrationFlagDays).toEqual({ value: 3, source: "default" });
+  });
+
+  it("reads the key from the file", () => {
+    const home = tempDir();
+    writeConfig(home, { version: 1, vaultPath: "/vault", migrationFlagDays: 7 });
+    expect(loadConfig({}, home).migrationFlagDays).toEqual({ value: 7, source: "file" });
+  });
+
+  it.each([1, 366, 2.5, "3"])("rejects %j and names the key", (value) => {
+    const home = tempDir();
+    writeConfig(home, { version: 1, vaultPath: "/vault", migrationFlagDays: value });
+    try {
+      loadConfig({}, home);
+      expect.unreachable();
+    } catch (error) {
+      expect((error as DibujoError).code).toBe("CONFIG_INVALID");
+      expect((error as DibujoError).message).toContain("migrationFlagDays");
+    }
   });
 });
 
@@ -110,7 +137,13 @@ describe("saveConfig", () => {
   it("writes the file with mode 0600 and the folder with mode 0700", () => {
     const home = tempDir();
     const path = configPath({}, home);
-    saveConfig(path, { version: 1, vaultPath: "/v", folder: "Bujo", dayStartHour: 0 });
+    saveConfig(path, {
+      version: 1,
+      vaultPath: "/v",
+      folder: "Bujo",
+      dayStartHour: 0,
+      migrationFlagDays: 3,
+    });
     expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(statSync(join(home, ".config", "dibujo")).mode & 0o777).toBe(0o700);
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
@@ -118,13 +151,20 @@ describe("saveConfig", () => {
       vaultPath: "/v",
       folder: "Bujo",
       dayStartHour: 0,
+      migrationFlagDays: 3,
     });
   });
 
   it("replaces an existing file and keeps mode 0600", () => {
     const home = tempDir();
     const path = writeConfig(home, "{}");
-    saveConfig(path, { version: 1, vaultPath: "/v2", folder: "Bujo", dayStartHour: 3 });
+    saveConfig(path, {
+      version: 1,
+      vaultPath: "/v2",
+      folder: "Bujo",
+      dayStartHour: 3,
+      migrationFlagDays: 3,
+    });
     expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(loadConfig({}, home).dayStartHour.value).toBe(3);
   });

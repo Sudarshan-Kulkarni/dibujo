@@ -4,18 +4,26 @@ import { DibujoError } from "../errors.js";
 import { BULLET_TYPES, type Bullet, MAX_WRITE_DEPTH, SIGNIFIERS, TASK_STATES } from "./types.js";
 
 const RESERVED_TAG = /#(priority|inspiration)\b/i;
-const LEADING_CHECKBOX = /^\[.\](\s|$)/;
+/** Any `[?]` at the start would make the written line look like a checkbox. */
+const LEADING_CHECKBOX = /^\[.\]/;
+const TRAILING_BLOCK_ID_LIKE = /\s\^[A-Za-z0-9-]+$/;
+const TRAILING_BLOCK_LINK = /\[\[[^\]]*#\^[^\]]*\]\]$/;
+
+export const BulletText = z
+  .string()
+  .trim()
+  .min(1, "must not be empty")
+  .refine((t) => !/[\r\n\u2028\u2029]/.test(t), "must be a single line")
+  .refine((t) => !LEADING_CHECKBOX.test(t), "must not start with a checkbox like [ ]")
+  .refine((t) => !RESERVED_TAG.test(t), "use `signifiers` instead of #priority/#inspiration")
+  .refine((t) => !t.includes("⏳"), "must not contain ⏳ (scheduled dates are set by dibujo)")
+  .refine((t) => !TRAILING_BLOCK_ID_LIKE.test(t), "must not end with a block id like ^abc123")
+  .refine((t) => !TRAILING_BLOCK_LINK.test(t), "must not end with a block link like [[note#^id]]");
 
 export const BulletInput = z
   .object({
     type: z.enum(BULLET_TYPES),
-    text: z
-      .string()
-      .trim()
-      .min(1, "must not be empty")
-      .refine((t) => !/[\r\n]/.test(t), "must be a single line")
-      .refine((t) => !LEADING_CHECKBOX.test(t), "must not start with a checkbox like [ ]")
-      .refine((t) => !RESERVED_TAG.test(t), "use `signifiers` instead of #priority/#inspiration"),
+    text: BulletText,
     state: z.enum(TASK_STATES).optional(),
     signifiers: z.array(z.enum(SIGNIFIERS)).default([]),
     depth: z.number().int().min(0).max(MAX_WRITE_DEPTH).default(0),

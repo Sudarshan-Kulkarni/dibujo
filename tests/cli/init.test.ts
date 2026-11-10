@@ -31,6 +31,7 @@ describe("dibujo init", () => {
       vaultPath: v,
       folder: "Journal/Bujo",
       dayStartHour: 4,
+      migrationFlagDays: 3,
     });
     expect(statSync(configPath({}, ctx.homedir)).mode & 0o777).toBe(0o600);
     expect(ctx.out()).toContain("Saved config");
@@ -105,6 +106,26 @@ describe("dibujo init", () => {
   it.each(["24", "-1", "4.5", "four", ""])("rejects the day-start hour %j", async (hour) => {
     const ctx = fakeCtx();
     expect(await runCli(["init", "--vault", vault(), "--day-start", hour], ctx, registers)).toBe(2);
+  });
+
+  it("sets the migration flag threshold without prompting, and keeps it on --force", async () => {
+    const ctx = fakeCtx({ interactive: true, answers: ["", ""] });
+    const v = vault();
+    expect(await runCli(["init", "--vault", v, "--flag-after-days", "5"], ctx, registers)).toBe(0);
+    expect(ctx.questions).toHaveLength(2);
+    expect(savedConfig(ctx.homedir)).toMatchObject({ migrationFlagDays: 5 });
+
+    const again = fakeCtx({ homedir: ctx.homedir });
+    expect(await runCli(["init", "--vault", v, "--force"], again, registers)).toBe(0);
+    expect(savedConfig(ctx.homedir)).toMatchObject({ migrationFlagDays: 5 });
+  });
+
+  it.each(["1", "366", "2.5", "three", "", "-3"])("rejects the flag threshold %j", async (days) => {
+    const ctx = fakeCtx();
+    const args = ["init", "--vault", vault(), "--flag-after-days", days, "--json"];
+    expect(await runCli(args, ctx, registers)).toBe(2);
+    expect(parseJsonOut(ctx.out())).toMatchObject({ error: { code: "USAGE" } });
+    expect(existsSync(configPath({}, ctx.homedir))).toBe(false);
   });
 
   it("warns, but continues, when the folder has no .obsidian", async () => {
@@ -184,6 +205,7 @@ describe("dibujo config", () => {
           vaultPath: { value: null, source: "default" },
           folder: { value: "Bujo", source: "default" },
           dayStartHour: { value: 0, source: "default" },
+          migrationFlagDays: { value: 3, source: "default" },
         },
       },
     });
@@ -197,6 +219,14 @@ describe("dibujo config", () => {
     expect(show.out()).toContain("/from/env  (env)");
     expect(show.out()).toContain("Bujo  (file)");
     expect(show.out()).toContain("4  (file)");
+  });
+
+  it("shows the flag threshold from the file", async () => {
+    const ctx = fakeCtx();
+    await runCli(["init", "--vault", vault(), "--flag-after-days", "4"], ctx, registers);
+    const show = fakeCtx({ homedir: ctx.homedir });
+    expect(await runCli(["config"], show, registers)).toBe(0);
+    expect(show.out()).toContain("migrationFlagDays  4  (file)");
   });
 
   it("reports an invalid config file", async () => {

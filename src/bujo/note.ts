@@ -85,11 +85,30 @@ export function appendCapture(
   const { lines: originalLines, eol } = splitLines(original);
   let lines = [...originalLines];
 
-  lines = appendToSection(lines, "log", LOG_HEADING, bullets.map(formatBullet), "captures");
+  lines = appendToSection(
+    lines,
+    "log",
+    LOG_HEADING,
+    bullets.map((b) => formatBullet(b)),
+    "captures",
+  );
   lines = appendToSection(lines, "captures", CAPTURES_HEADING, [...callout], null, true);
 
   if (!isSubsequence(originalLines, lines)) {
     throw new Error("appendCapture would have removed or reordered existing lines");
+  }
+  return `${lines.join(eol)}${eol}`;
+}
+
+/**
+ * Adds already-formatted lines to the end of the Log section, creating the section
+ * if it's missing. Writes no capture callout. Every original line is kept, in order.
+ */
+export function appendLogLines(original: string, addition: readonly string[]): string {
+  const { lines: originalLines, eol } = splitLines(original);
+  const lines = appendToSection([...originalLines], "log", LOG_HEADING, [...addition], "captures");
+  if (!isSubsequence(originalLines, lines)) {
+    throw new Error("appendLogLines would have removed or reordered existing lines");
   }
   return `${lines.join(eol)}${eol}`;
 }
@@ -217,7 +236,7 @@ function lastNonBlank(lines: readonly string[]): number {
 }
 
 /** Splits content into lines, dropping the final empty line and remembering the line ending. */
-function splitLines(content: string): { lines: string[]; eol: string } {
+export function splitLines(content: string): { lines: string[]; eol: string } {
   const eol = content.includes("\r\n") ? "\r\n" : "\n";
   if (content.length === 0) return { lines: [], eol };
   const lines = content.split(/\r?\n/);

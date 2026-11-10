@@ -1,4 +1,4 @@
-import { format, isValid, parse, subDays } from "date-fns";
+import { addDays as addCalendarDays, format, isValid, parse, subDays } from "date-fns";
 import { DibujoError } from "../errors.js";
 
 const DATE_FORMAT = "yyyy-MM-dd";
@@ -32,4 +32,14 @@ export function parseDateArg(value: string): string {
 /** Local time as `HH:mm`, used in capture callout titles. */
 export function localTime(now: Date): string {
   return format(now, "HH:mm");
+}
+
+/**
+ * Shifts a `YYYY-MM-DD` date by `n` calendar days. The date is anchored at local
+ * noon, so DST changes (which happen at night) can never move it to another day.
+ */
+export function addDays(date: string, n: number): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const noon = new Date(year ?? 0, (month ?? 1) - 1, day ?? 1, 12);
+  return format(addCalendarDays(noon, n), DATE_FORMAT);
 }
