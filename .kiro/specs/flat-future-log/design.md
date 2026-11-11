@@ -108,9 +108,11 @@ Reading (`bullet.ts`): the regex stops requiring a date or year key and captures
 | `YYYY-MM-DD`, or a path ending in `/Daily/YYYY-MM-DD` | daily origin |
 | `Future`, or a path ending in `/Future` | future origin, no year |
 | `YYYY` (bare), or a path ending in `/Future/YYYY` | future origin, with that year |
-| Anything else, such as `Books/Future`, `Bujo/Daily/2026`, `Books/2026` | not an origin. The link stays in the text. |
+| Anything else, such as `Bujo/Daily/2026`, `Bujo/Future/2026-11-08`, `Books/2026` | not an origin. The link stays in the text. |
 
-The rule is the same one as today, "the target and folder must agree", expressed on the whole target. A bare `Future` with no folder is accepted, as bare dates are, for notes written without a folder.
+The rule is the same one as today, "the target and folder must agree", expressed on the whole target: a date needs `Daily` before it (or nothing), a year needs `Future` before it (or nothing), and the name `Future` stands alone. A bare `Future` with no folder is accepted, as bare dates are, for notes written without a folder.
+
+**Known limit.** The parser doesn't know which folder is the dibujo folder, so `<path>` means any path. A task that ends with a block link to some other note named `Future`, such as `[[Books/Future#^abc]]`, is read as an origin link to the future log, and the link leaves the text. This is accepted: it needs a task that ends in a block link to a note with that exact name. Don't add a test that expects such a link to stay in the text.
 
 Writing (`formatOriginLink`): the future form is `[[<folder>/Future#^id|from future log]]`, or `[[Future#^id|from future log]]` without a folder.
 
