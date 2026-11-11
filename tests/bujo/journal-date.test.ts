@@ -4,7 +4,11 @@ import {
   daysBetween,
   journalDate,
   localTime,
+  monthName,
+  monthOf,
   parseDateArg,
+  parseMonthArg,
+  previousMonth,
 } from "../../src/bujo/journal-date.js";
 import { DibujoError } from "../../src/errors.js";
 
@@ -125,5 +129,51 @@ describe("daysBetween", () => {
     expect(daysBetween("2026-03-07", "2026-03-09")).toBe(2); // DST starts 03-08
     expect(daysBetween("2026-10-31", "2026-11-02")).toBe(2); // DST ends 11-01
     expect(daysBetween("2026-11-09", "2026-11-02")).toBe(-7);
+  });
+});
+
+describe("monthOf", () => {
+  it("takes the month from a date", () => {
+    expect(monthOf("2026-10-31")).toBe("2026-10");
+    expect(monthOf("2026-01-01")).toBe("2026-01");
+  });
+});
+
+describe("previousMonth", () => {
+  it("goes back one month", () => {
+    expect(previousMonth("2026-11")).toBe("2026-10");
+  });
+
+  it("crosses a year boundary", () => {
+    expect(previousMonth("2026-01")).toBe("2025-12");
+  });
+});
+
+describe("parseMonthArg", () => {
+  it("accepts a YYYY-MM month", () => {
+    expect(parseMonthArg("2026-10")).toBe("2026-10");
+  });
+
+  it.each(["2026-1", "2026-10-05", "26-10", "october", ""])("rejects the shape %j", (value) => {
+    expect(() => parseMonthArg(value)).toThrow(DibujoError);
+  });
+
+  it("rejects month 13 and month 00", () => {
+    for (const value of ["2026-13", "2026-00"]) {
+      try {
+        parseMonthArg(value);
+        expect.unreachable();
+      } catch (error) {
+        expect((error as DibujoError).code).toBe("INVALID_DATE");
+      }
+    }
+  });
+});
+
+describe("monthName", () => {
+  it("writes the English month name and the year", () => {
+    expect(monthName("2026-10")).toBe("October 2026");
+    expect(monthName("2025-01")).toBe("January 2025");
+    expect(monthName("2025-12")).toBe("December 2025");
   });
 });

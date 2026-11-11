@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
+import { isDateInMonth, parseDateArg } from "../bujo/journal-date.js";
 import type { VaultConfig } from "../config.js";
 import { DibujoError } from "../errors.js";
 
@@ -23,6 +24,40 @@ export function resolveInVault(config: VaultConfig, ...segments: string[]): stri
 
 export function dailyNotePath(config: VaultConfig, date: string): string {
   return resolveInVault(config, "Daily", `${date}.md`);
+}
+
+/** The monthly note: `Monthly/YYYY-MM.md`. */
+export function monthlyNotePath(config: VaultConfig, month: string): string {
+  return resolveInVault(config, "Monthly", `${month}.md`);
+}
+
+const DAILY_FILE = /^(\d{4}-\d{2}-\d{2})\.md$/;
+
+/**
+ * The dates of the daily notes in a `YYYY-MM` month, oldest first. It reads the folder's
+ * file names only. A missing `Daily/` folder gives an empty list, and names that aren't
+ * real dates are ignored.
+ */
+export function dailyNoteDatesIn(config: VaultConfig, month: string): string[] {
+  let names: string[];
+  try {
+    names = readdirSync(resolveInVault(config, "Daily"));
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return [];
+    throw error;
+  }
+  const dates: string[] = [];
+  for (const name of names) {
+    const date = DAILY_FILE.exec(name)?.[1];
+    if (date === undefined || !isDateInMonth(date, month)) continue;
+    try {
+      dates.push(parseDateArg(date));
+    } catch {
+      // Not a real calendar date, so not a daily note.
+    }
+  }
+  return dates.sort();
 }
 
 /** The future log: one note, `Future.md`, in the dibujo folder. */

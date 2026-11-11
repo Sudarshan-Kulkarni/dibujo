@@ -36,6 +36,60 @@ export function parseDateArg(value: string): string {
   return value;
 }
 
+const MONTH_SHAPE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+/** The month a `YYYY-MM-DD` date is in, as `YYYY-MM`. */
+export function monthOf(date: string): string {
+  return date.slice(0, 7);
+}
+
+/** The month before a `YYYY-MM` month: `2026-01` gives `2025-12`. */
+export function previousMonth(month: string): string {
+  const [year, number] = month.split("-").map(Number);
+  const y = year ?? 0;
+  const m = number ?? 1;
+  const prevYear = m === 1 ? y - 1 : y;
+  const prevMonth = m === 1 ? 12 : m - 1;
+  return `${String(prevYear).padStart(4, "0")}-${String(prevMonth).padStart(2, "0")}`;
+}
+
+/** Validates a month argument. Accepts only `YYYY-MM` with a month from 01 to 12. */
+export function parseMonthArg(value: string): string {
+  if (!MONTH_SHAPE.test(value)) {
+    throw new DibujoError(
+      "INVALID_DATE",
+      `Invalid month "${value}".`,
+      "Use a month in YYYY-MM form, for example 2026-10.",
+    );
+  }
+  return value;
+}
+
+/** The English name of a `YYYY-MM` month with its year: `2026-10` gives `October 2026`. */
+export function monthName(month: string): string {
+  const [year, number] = month.split("-");
+  return `${MONTH_NAMES[Number(number) - 1] ?? month} ${year}`;
+}
+
+/** True when a `YYYY-MM-DD` date is in the `YYYY-MM` month. */
+export function isDateInMonth(date: string, month: string): boolean {
+  return monthOf(date) === month;
+}
+
 /** Local time as `HH:mm`, used in capture callout titles. */
 export function localTime(now: Date): string {
   return format(now, "HH:mm");

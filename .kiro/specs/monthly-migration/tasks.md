@@ -15,11 +15,11 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
 
 ---
 
-- [ ] 1. Groundwork
-  - [ ] 1.1 In `src/bujo/journal-date.ts`, add `monthOf`, `previousMonth`, `parseMonthArg`, `monthName`, and `isDateInMonth`, as in "Pure logic" in the design. `parseMonthArg` accepts only `YYYY-MM` with a month from 01 to 12 and throws `INVALID_DATE` otherwise, with a hint like `parseDateArg`'s. `monthName` uses a fixed list of English names.
-  - [ ] 1.2 In `src/vault/paths.ts`, add `monthlyNotePath(config, month)` (`Monthly/YYYY-MM.md`) and `dailyNoteDatesIn(config, month)`, as in "Vault operations" in the design. A missing `Daily/` folder gives an empty list. Names that aren't real dates are ignored.
-  - [ ] 1.3 In `src/errors.ts`, add the runtime code `SUMMARY_EXISTS`.
-  - [ ] 1.4 Tests in `tests/bujo/journal-date.test.ts`: `monthOf`, `previousMonth` across a year boundary, `parseMonthArg` with a good value, a bad shape, and month 13, and `monthName`.
+- [x] 1. Groundwork
+  - [x] 1.1 In `src/bujo/journal-date.ts`, add `monthOf`, `previousMonth`, `parseMonthArg`, `monthName`, and `isDateInMonth`, as in "Pure logic" in the design. `parseMonthArg` accepts only `YYYY-MM` with a month from 01 to 12 and throws `INVALID_DATE` otherwise, with a hint like `parseDateArg`'s. `monthName` uses a fixed list of English names.
+  - [x] 1.2 In `src/vault/paths.ts`, add `monthlyNotePath(config, month)` (`Monthly/YYYY-MM.md`) and `dailyNoteDatesIn(config, month)`, as in "Vault operations" in the design. A missing `Daily/` folder gives an empty list. Names that aren't real dates are ignored.
+  - [x] 1.3 In `src/errors.ts`, add the runtime code `SUMMARY_EXISTS`.
+  - [x] 1.4 Tests in `tests/bujo/journal-date.test.ts`: `monthOf`, `previousMonth` across a year boundary, `parseMonthArg` with a good value, a bad shape, and month 13, and `monthName`.
   - _Requirements: 1.1, 1.2, 5.1, 6.6_
 
 - [ ] 2. Counts and moving tasks (pure)
