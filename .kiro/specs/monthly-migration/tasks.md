@@ -22,19 +22,19 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 1.4 Tests in `tests/bujo/journal-date.test.ts`: `monthOf`, `previousMonth` across a year boundary, `parseMonthArg` with a good value, a bad shape, and month 13, and `monthName`.
   - _Requirements: 1.1, 1.2, 5.1, 6.6_
 
-- [ ] 2. Counts and moving tasks (pure)
+- [x] 2. Counts and moving tasks (pure)
   - _Depends on: 1_
-  - [ ] 2.1 Create `src/bujo/month.ts` with `countTasks` and `movingTasks`. Follow "Moving tasks" in the design step by step: the index, the predecessor rules for daily and future origins, heads, the walk with a visited set, counting moves (the head included), leaving out chains whose head is nested under a task, the threshold, and the sort order.
-  - [ ] 2.2 Tests in `tests/bujo/month.test.ts` (core only):
+  - [x] 2.1 Create `src/bujo/month.ts` with `countTasks` and `movingTasks`. Follow "Moving tasks" in the design step by step: the index, the predecessor rules for daily and future origins, heads, the walk with a visited set, counting moves (the head included), leaving out chains whose head is nested under a task, the threshold, and the sort order.
+  - [x] 2.2 Tests in `tests/bujo/month.test.ts` (core only):
     - `countTasks` counts nested tasks, and a task migrated twice and then completed counts once as completed.
     - `movingTasks`: a chain over days that aren't in a row; exactly at the threshold and one below; a trip through the future log (`[<]` daily task, `[>]` future entry, copy with a future origin) joining one chain; a move in from the month before not counted; a head migrated out on the last day counted; a nested child task left out; a broken link ending the chain; a hand-made loop not hanging.
     - A property: for generated months, no moving task has more `moves` than there are task lines in the month, and each chain is listed once.
   - _Requirements: 4.1 to 4.6_
 
-- [ ] 3. Monthly note logic (pure)
+- [x] 3. Monthly note logic (pure)
   - _Depends on: 2_
-  - [ ] 3.1 Create `src/bujo/monthly-note.ts` with `SummaryInput`, `parseSummaryInput`, `newMonthlyTemplate`, `renderSummary`, `hasSummary`, `appendSummary`, and `containsBlock`. Follow "The monthly note", "Recognizing a summary", and "`src/bujo/monthly-note.ts`" in the design. Reuse `BulletText` from `capture.ts`, `formatIssues` for errors, and `listHeadings`, `splitLines`, `lastNonBlank`, and `isSubsequence` from `note.ts`. `newMonthlyTemplate` writes the frontmatter `dibujo`, `type: monthly`, and `month`.
-  - [ ] 3.2 Tests in `tests/bujo/monthly-note.test.ts` (core only):
+  - [x] 3.1 Create `src/bujo/monthly-note.ts` with `SummaryInput`, `parseSummaryInput`, `newMonthlyTemplate`, `renderSummary`, `hasSummary`, `appendSummary`, and `containsBlock`. Follow "The monthly note", "Recognizing a summary", and "`src/bujo/monthly-note.ts`" in the design. Reuse `BulletText` from `capture.ts`, `formatIssues` for errors, and `listHeadings`, `splitLines`, `lastNonBlank`, and `isSubsequence` from `note.ts`. `newMonthlyTemplate` writes the frontmatter `dibujo`, `type: monthly`, and `month`.
+  - [x] 3.2 Tests in `tests/bujo/monthly-note.test.ts` (core only):
     - `renderSummary` with every section filled, and with every section empty (the empty-section lines, `0` tasks done, the threshold in the moving line). Compare against the example in the design.
     - `hasSummary`: true with a renamed title, false for a note with only other headings, false when the headings are in a code fence.
     - `parseSummaryInput` rejects an unknown field, a multi-line item, and more than 10 items.
