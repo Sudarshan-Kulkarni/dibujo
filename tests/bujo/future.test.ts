@@ -4,217 +4,188 @@ import { formatBullet } from "../../src/bujo/bullet.js";
 import {
   appendFutureEntries,
   dueEntries,
+  eventsOn,
   type FutureBullet,
-  findLive,
-  type LocatedEntry,
-  monthHeading,
   newFutureTemplate,
+  otherWaiting,
   parseFutureNote,
 } from "../../src/bujo/future.js";
-import { isSubsequence, listHeadings, splitLines } from "../../src/bujo/note.js";
-import { bullet, isoDate } from "../helpers/arbitraries.js";
-
-const MONTHS = Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, "0")}`);
-
-/** The month keys of a note's headings, in the order they appear. */
-function monthKeys(content: string): string[] {
-  return listHeadings(splitLines(content).lines).flatMap((h) => {
-    const match = /^(\d{4}-\d{2})\b/.exec(h.name);
-    return match?.[1] ? [match[1]] : [];
-  });
-}
+import { isSubsequence, splitLines } from "../../src/bujo/note.js";
+import { bullet } from "../helpers/arbitraries.js";
 
 describe("newFutureTemplate", () => {
-  it("has the 12 months in order and parses as an empty note", () => {
-    const content = newFutureTemplate("2026");
-    expect(content.startsWith("---\ndibujo: 1\ntype: future\nyear: 2026\n---\n")).toBe(true);
-    expect(monthKeys(content)).toEqual(MONTHS);
-    expect(content).toContain("## 2026-01 January\n");
-    expect(content).toContain("## 2026-12 December\n");
+  it("is just the frontmatter and parses as an empty note", () => {
+    const content = newFutureTemplate();
+    expect(content).toBe("---\ndibujo: 1\ntype: future\n---\n");
     expect(parseFutureNote(content)).toEqual({ version: 1, entries: [], unrecognized: [] });
   });
 });
 
 describe("parseFutureNote", () => {
-  it("reads entries per month and reports lines that aren't bullets", () => {
+  it("reads every bullet wherever it is, skips headings, and reports other lines", () => {
     const content = [
       "---",
       "dibujo: 1",
+      "type: future",
       "---",
       "",
-      "A paragraph at the top.",
-      "- [ ] not an entry, outside the months",
+      "# Future log",
+      "- [ ] learn Rust",
       "",
-      "## 2026-11 November",
+      "## December",
       "",
-      "- [>] renew passport ⏳ 2026-11-12 ^m4n5p6",
+      "- [>] renew passport [[Bujo/Daily/2026-11-09#^k3f9a1|from 2026-11-09]] ⏳ 2026-11-12 ^m4n5p6",
+      "\t- [ ] bring the old one",
       "just some words",
-      "",
-      "## Notes",
-      "- [ ] also outside the months",
-      "",
-      "## 2026-12 December",
-      "- [ ] book flights ⏳ 2026-12-20",
-      "\t* dentist",
+      "### Later",
+      "* dentist at 3pm 📅 2026-12-12",
+      "- check out the zine fair",
       "",
     ].join("\n");
 
     const parsed = parseFutureNote(content);
     expect(parsed.version).toBe(1);
-    expect(parsed.entries.map((e) => [e.month, e.line, e.state, e.text])).toEqual([
-      ["2026-11", 10, "migrated", "renew passport"],
-      ["2026-12", 17, "open", "book flights"],
-      ["2026-12", 18, undefined, "dentist"],
+    expect(parsed.entries.map((e) => [e.line, e.type, e.state, e.depth, e.text])).toEqual([
+      [7, "task", "open", 0, "learn Rust"],
+      [11, "task", "migrated", 0, "renew passport"],
+      [12, "task", "open", 1, "bring the old one"],
+      [15, "event", undefined, 0, "dentist at 3pm"],
+      [16, "note", undefined, 0, "check out the zine fair"],
     ]);
-    expect(parsed.unrecognized).toEqual([{ line: 11, text: "just some words" }]);
+    expect(parsed.entries[3]?.eventDate).toBe("2026-12-12");
+    expect(parsed.entries[1]?.origin).toEqual({ date: "2026-11-09", blockId: "k3f9a1" });
+    expect(parsed.unrecognized).toEqual([{ line: 13, text: "just some words" }]);
+  });
+
+  it("does not treat a tag or a frontmatter line as a heading or an entry", () => {
+    const parsed = parseFutureNote("---\ndibujo: 1\n---\n#priority is not a heading\n- [ ] x\n");
+    expect(parsed.entries.map((e) => e.text)).toEqual(["x"]);
+    expect(parsed.unrecognized).toEqual([{ line: 4, text: "#priority is not a heading" }]);
+  });
+
+  it("reads a note without frontmatter, and reports a bad version", () => {
+    expect(parseFutureNote("- [ ] x\n")).toMatchObject({ version: 1 });
+    expect(parseFutureNote("---\ndibujo: 2\n---\n- [ ] x\n").version).toBe(2);
+    expect(parseFutureNote("---\ndibujo: nope\n---\n").version).toBeNull();
   });
 });
 
 describe("appendFutureEntries", () => {
   const entry = "- [ ] book flights ⏳ 2026-12-20";
 
-  it("inserts a missing month in calendar order", () => {
-    const base = ["---", "dibujo: 1", "---", "", "## 2026-03 March", "", "## 2026-09 September"];
-    const withLine = (month: string, content: string) =>
-      appendFutureEntries(content, month, [entry]);
-
-    // Before a later month.
-    const middle = withLine("2026-05", `${base.join("\n")}\n`);
-    expect(monthKeys(middle)).toEqual(["2026-03", "2026-05", "2026-09"]);
-    expect(middle).toContain(`## 2026-05 May\n\n${entry}\n\n## 2026-09 September`);
-
-    // Before the first month.
-    expect(monthKeys(withLine("2026-01", `${base.join("\n")}\n`))).toEqual([
-      "2026-01",
-      "2026-03",
-      "2026-09",
-    ]);
-
-    // After the last month section, ahead of an unrelated heading.
-    const withNotes = `${[...base, "- [ ] x", "", "## Notes", "text"].join("\n")}\n`;
-    const last = withLine("2026-11", withNotes);
-    expect(monthKeys(last)).toEqual(["2026-03", "2026-09", "2026-11"]);
-    expect(last.indexOf("## 2026-11 November")).toBeLessThan(last.indexOf("## Notes"));
-
-    // In a note with no month sections at all.
-    const empty = withLine("2026-02", "---\ndibujo: 1\n---\n\nSome notes.\n");
-    expect(empty).toBe(`---\ndibujo: 1\n---\n\nSome notes.\n\n## 2026-02 February\n\n${entry}\n`);
+  it("puts a blank line between the frontmatter and the first entry of a new note", () => {
+    expect(appendFutureEntries(newFutureTemplate(), [entry, "- a note"])).toBe(
+      `---\ndibujo: 1\ntype: future\n---\n\n${entry}\n- a note\n`,
+    );
   });
 
-  it("keeps every original line in order and the months in calendar order", () => {
-    const monthSet = fc.subarray(MONTHS).chain((months) =>
-      fc.tuple(
-        fc.constant(months),
-        fc.array(fc.array(bullet, { maxLength: 3 }), {
-          minLength: months.length,
-          maxLength: months.length,
-        }),
+  it("adds no extra blank line when one is already there", () => {
+    expect(appendFutureEntries("---\ndibujo: 1\n---\n\n", [entry])).toBe(
+      `---\ndibujo: 1\n---\n\n${entry}\n`,
+    );
+  });
+
+  it("adds after the last non-blank line, with no blank line, and keeps what follows", () => {
+    const original = "---\ndibujo: 1\n---\n\n- [ ] first\n\n## Notes\nwords\n\n\n";
+    expect(appendFutureEntries(original, [entry])).toBe(
+      `---\ndibujo: 1\n---\n\n- [ ] first\n\n## Notes\nwords\n${entry}\n\n\n`,
+    );
+  });
+
+  it("keeps CRLF line endings", () => {
+    const original = "---\r\ndibujo: 1\r\n---\r\n\r\n- [ ] first\r\n";
+    expect(appendFutureEntries(original, [entry])).toBe(
+      `---\r\ndibujo: 1\r\n---\r\n\r\n- [ ] first\r\n${entry}\r\n`,
+    );
+  });
+
+  it("starts a note that is empty or has no frontmatter", () => {
+    expect(appendFutureEntries("", [entry])).toBe(`${entry}\n`);
+    expect(appendFutureEntries("Some words\n", [entry])).toBe(`Some words\n${entry}\n`);
+  });
+
+  it("keeps every original line in order, and reads back what it added", () => {
+    const line = fc.oneof(
+      bullet.map((b) => formatBullet(b)),
+      fc.constantFrom("", "", "## December", "# Future", "just some words", "\t- nested", "---"),
+    );
+    const frontmatter = fc.constantFrom(
+      [],
+      ["---", "dibujo: 1", "type: future", "---"],
+      ["---", "dibujo: 1", "---", ""],
+    );
+    const note = fc
+      .tuple(
+        frontmatter,
+        fc.array(line, { maxLength: 12 }),
+        fc.constantFrom("\n", "\r\n"),
         fc.boolean(),
-      ),
-    );
-    const note = monthSet.map(([months, entries, notes]) => {
-      const lines = ["---", "dibujo: 1", "type: future", "year: 2026", "---", ""];
-      months.forEach((month, i) => {
-        lines.push(monthHeading(month), "");
-        for (const b of entries[i] ?? []) lines.push(formatBullet(b));
-        lines.push("", ...(i === months.length - 1 && notes ? ["## Notes", "words", ""] : []));
+      )
+      .map(([head, body, eol, trailing]) => {
+        const text = [...head, ...body].join(eol);
+        return trailing ? `${text}${eol}` : text;
       });
-      return `${lines.join("\n")}\n`;
-    });
+    const added = ["- [ ] new one ⏳ 2026-06-01", "* new two 📅 2026-06-02", "- new three"];
 
     fc.assert(
-      fc.property(note, fc.constantFrom(...MONTHS), (original, month) => {
-        const added = ["- [ ] new one ⏳ 2026-06-01", "- [ ] new two"];
-        const result = appendFutureEntries(original, month, added);
+      fc.property(note, (original) => {
+        const result = appendFutureEntries(original, added);
+        const before = splitLines(original).lines;
+        const after = splitLines(result).lines;
 
-        expect(isSubsequence(splitLines(original).lines, splitLines(result).lines)).toBe(true);
-        const keys = monthKeys(result);
-        expect(keys).toEqual([...keys].sort());
-        expect(new Set(keys).size).toBe(keys.length);
-        expect(keys).toContain(month);
-        const inMonth = parseFutureNote(result).entries.filter(
-          (e) => e.text === "new one" || e.text === "new two",
-        );
-        expect(inMonth.map((e) => e.month)).toEqual([month, month]);
-      }),
-      { numRuns: 300 },
-    );
-  });
-});
-
-describe("dueEntries", () => {
-  it("returns an entry exactly when it is a waiting, dated task on or before today", () => {
-    const entries = fc.array(bullet, { maxLength: 12 });
-    fc.assert(
-      fc.property(entries, isoDate, (all, today) => {
-        const list = all.map((e, i): FutureBullet => ({ ...e, line: i + 1, month: "2026-01" }));
-        const due = dueEntries(list, today);
-        for (const e of list) {
-          const expected =
-            e.type === "task" &&
-            e.state === "open" &&
-            e.scheduled !== undefined &&
-            e.scheduled <= today;
-          expect(due.includes(e)).toBe(expected);
-        }
-        const dates = due.map((e) => e.scheduled ?? "");
-        expect(dates).toEqual([...dates].sort());
-        // Entries with the same date stay in note order.
-        due.forEach((e, i) => {
-          const previous = due[i - 1];
-          if (previous && previous.scheduled === e.scheduled) {
-            expect(previous.line).toBeLessThan(e.line);
-          }
-        });
+        expect(isSubsequence(before, after)).toBe(true);
+        // Nothing is added in front of the last non-blank original line.
+        const lastOriginal = before.findLastIndex((l) => l.trim().length > 0);
+        const firstAdded = after.indexOf(added[0] ?? "");
+        expect(firstAdded).toBeGreaterThan(lastOriginal);
+        expect(after.slice(firstAdded, firstAdded + 3)).toEqual(added);
+        expect(result).toContain(original.includes("\r\n") ? "\r\n" : "\n");
       }),
       { numRuns: 500 },
     );
   });
 });
 
-describe("findLive", () => {
-  const from = { date: "2026-11-02", blockId: "t1u2v3" };
-  const daily = "[[Bujo/Daily/2026-11-02#^t1u2v3|from 2026-11-02]]";
-  const future = "[[Bujo/Future/2026#^w4x5y6|from future log 2026]]";
+describe("dueEntries, eventsOn, and otherWaiting", () => {
+  const entries: FutureBullet[] = parseFutureNote(
+    [
+      "- [ ] a: late task ⏳ 2026-11-01",
+      "- [ ] b: due today ⏳ 2026-11-10",
+      "- [ ] c: later task ⏳ 2026-12-20",
+      "- [ ] d: undated task",
+      "- [>] e: brought in ⏳ 2026-11-01 ^e1",
+      "- [-] f: cancelled ⏳ 2026-11-02",
+      "- [x] g: done, undated",
+      "- [ ] h: earlier and in note order after a ⏳ 2026-11-01",
+      "* i: event today 📅 2026-11-10",
+      "* j: event another day 📅 2026-11-11",
+      "* k: undated event",
+      "- l: a note",
+    ].join("\n"),
+  ).entries;
+  const texts = (list: readonly FutureBullet[]) => list.map((e) => e.text.slice(0, 1));
 
-  const located = (...lines: string[]): LocatedEntry[] =>
-    parseFutureNote(["## 2026-12 December", "", ...lines].join("\n")).entries.map((e) => ({
-      ...e,
-      year: "2026",
-    }));
-  const live = (...lines: string[]) => findLive(located(...lines), from);
-
-  it("finds nothing when no entry links to the task", () => {
-    expect(live()).toBeNull();
-    expect(live("- [ ] something else [[Bujo/Daily/2026-11-03#^zzz|from 2026-11-03]]")).toBeNull();
+  it("lists waiting tasks dated today or earlier, by date and then note order", () => {
+    expect(texts(dueEntries(entries, "2026-11-10"))).toEqual(["a", "h", "b"]);
+    expect(texts(dueEntries(entries, "2026-10-31"))).toEqual([]);
   });
 
-  it("finds a waiting entry", () => {
-    const found = live(`- [ ] file taxes ${daily} ⏳ 2026-12-01`);
-    expect(found?.kind).toBe("waiting");
-    expect(found?.entry.line).toBe(3);
+  it("lists the events dated on the day, in note order", () => {
+    expect(texts(eventsOn(entries, "2026-11-10"))).toEqual(["i"]);
+    expect(texts(eventsOn(entries, "2026-11-11"))).toEqual(["j"]);
+    expect(texts(eventsOn(entries, "2026-11-12"))).toEqual([]);
   });
 
-  it("follows a rescheduled chain to its waiting entry", () => {
-    const found = live(
-      `- [<] file taxes ${daily} ⏳ 2026-12-01 ^w4x5y6`,
-      `- [ ] file taxes ${future} ⏳ 2026-12-15`,
-    );
-    expect(found?.kind).toBe("waiting");
-    expect(found?.entry.scheduled).toBe("2026-12-15");
+  it("lists the waiting tasks that are not due, in note order", () => {
+    expect(texts(otherWaiting(entries, "2026-11-10"))).toEqual(["c", "d"]);
+    expect(texts(otherWaiting(entries, "2026-12-20"))).toEqual(["d"]);
   });
 
-  it("offers to resume an interrupted reschedule, and treats handled entries as finished", () => {
-    const found = live(`- [<] file taxes ${daily} ⏳ 2026-12-01 ^w4x5y6`);
-    expect(found?.kind).toBe("resume");
-    expect(found?.entry.line).toBe(3);
-
-    expect(live(`- [>] file taxes ${daily} ⏳ 2026-12-01 ^w4x5y6`)).toBeNull();
-    expect(
-      live(
-        `- [<] file taxes ${daily} ⏳ 2026-12-01 ^w4x5y6`,
-        `- [-] file taxes ${future} ⏳ 2026-12-15`,
-      ),
-    ).toBeNull();
+  it("splits every waiting task into due or other, never both", () => {
+    const waiting = entries.filter((e) => e.type === "task" && e.state === "open");
+    const due = dueEntries(entries, "2026-11-10");
+    const rest = otherWaiting(entries, "2026-11-10");
+    expect(due.length + rest.length).toBe(waiting.length);
+    expect(due.some((e) => rest.includes(e))).toBe(false);
   });
 });

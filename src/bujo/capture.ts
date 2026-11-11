@@ -17,6 +17,7 @@ export const BulletText = z
   .refine((t) => !LEADING_CHECKBOX.test(t), "must not start with a checkbox like [ ]")
   .refine((t) => !RESERVED_TAG.test(t), "use `signifiers` instead of #priority/#inspiration")
   .refine((t) => !t.includes("⏳"), "must not contain ⏳ (scheduled dates are set by dibujo)")
+  .refine((t) => !t.includes("📅"), "must not contain 📅 (event dates are set by dibujo)")
   .refine((t) => !TRAILING_BLOCK_ID_LIKE.test(t), "must not end with a block id like ^abc123")
   .refine((t) => !TRAILING_BLOCK_LINK.test(t), "must not end with a block link like [[note#^id]]");
 
@@ -104,7 +105,7 @@ export function parseCapture(json: string): Capture {
 }
 
 /** Lists each issue as `path: message`. Never includes the input values. */
-function formatIssues(error: z.ZodError): string {
+export function formatIssues(error: z.ZodError): string {
   return error.issues
     .map((issue) => {
       const path = issue.path.length > 0 ? issue.path.join(".") : "(root)";

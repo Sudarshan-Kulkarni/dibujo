@@ -12,7 +12,8 @@ const SIGNIFIER_SYMBOLS = { priority: "*", inspiration: "!" } as const;
 
 /**
  * Bullet Journal style: signifiers in the left margin, then the bullet symbol and
- * text, then where a task came from (`↩`) and when it's scheduled (`⏳`).
+ * text, then where a task came from (`↩`), when it's scheduled (`⏳`), and when an
+ * event happens (`📅`).
  */
 export function humanBullet(bullet: Bullet, extraIndent = 0): string {
   const margin = bullet.signifiers
@@ -26,10 +27,9 @@ export function humanBullet(bullet: Bullet, extraIndent = 0): string {
         ? "○"
         : "–";
   const suffixes = [
-    bullet.origin
-      ? `↩ ${"date" in bullet.origin ? bullet.origin.date : `future log ${bullet.origin.year}`}`
-      : "",
+    bullet.origin ? `↩ ${"date" in bullet.origin ? bullet.origin.date : "future log"}` : "",
     bullet.scheduled ? `⏳ ${bullet.scheduled}` : "",
+    bullet.eventDate ? `📅 ${bullet.eventDate}` : "",
     bullet.state === "cancelled" ? "(cancelled)" : "",
   ].filter((s) => s.length > 0);
   const suffix = suffixes.length > 0 ? `  ${suffixes.join("  ")}` : "";
