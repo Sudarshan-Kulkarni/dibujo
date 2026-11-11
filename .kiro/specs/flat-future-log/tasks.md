@@ -68,14 +68,14 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 3.2 Tests: rewrite the future log tests in `tests/vault/tasks.test.ts` (the `describe` block about scheduling and the future log). Cover one case for each row of the table, a schedule with no date, scheduling again with a different date (both dates change and there is still one entry), and an interrupted run finished by running the same command again. Leave the other tests in the file alone.
   - _Requirements: 3.1 to 3.10_
 
-- [ ] 4. CLI
+- [x] 4. CLI
   - _Depends on: 3_
-  - [ ] 4.1 New commands in `src/cli/`, registered in `registers.ts`:
+  - [x] 4.1 New commands in `src/cli/`, registered in `registers.ts`:
     - `future-add.ts`: JSON on stdin like `log-add.ts`, including the `USAGE` error when stdin is a terminal. Options `--dry-run` and `--json`.
     - `future-import.ts`: `--dry-run` and `--json`. Plain output says how many entries were copied from which notes and lists any unreadable lines.
-  - [ ] 4.2 Update the existing commands to the new results (see "JSON changes" in the design): `future-show.ts` (no year argument), `future-due.ts` (print the events and the other waiting tasks, and a line about `legacyNotes` when there are any), `future-migrate.ts`, `future-reschedule.ts` (the date is in place and the result is `{ ref, path, scheduled, status }`), `future-cancel.ts`, and `task-schedule.ts` (`<date>` becomes optional). Update the help text of each to match.
-  - [ ] 4.3 Delete the tests of the old design in `tests/cli/` and `tests/docs/` that no longer apply, and rewrite `tests/cli/future.test.ts` as one run through: `future add`, `task schedule` with and without a date, `future due`, `future migrate`, `future reschedule`, `future cancel`, and `future import`, with `--json` and a fake context. Fix `tests/cli/task.test.ts` for the new `task schedule` result.
-  - [ ] 4.4 `npm run format`, `npm run check`, and `npm test` pass in full.
+  - [x] 4.2 Update the existing commands to the new results (see "JSON changes" in the design): `future-show.ts` (no year argument), `future-due.ts` (print the events and the other waiting tasks, and a line about `legacyNotes` when there are any), `future-migrate.ts`, `future-reschedule.ts` (the date is in place and the result is `{ ref, path, scheduled, status }`), `future-cancel.ts`, and `task-schedule.ts` (`<date>` becomes optional). Update the help text of each to match.
+  - [x] 4.3 Delete the tests of the old design in `tests/cli/` and `tests/docs/` that no longer apply, and rewrite `tests/cli/future.test.ts` as one run through: `future add`, `task schedule` with and without a date, `future due`, `future migrate`, `future reschedule`, `future cancel`, and `future import`, with `--json` and a fake context. Fix `tests/cli/task.test.ts` for the new `task schedule` result.
+  - [x] 4.4 `npm run format`, `npm run check`, and `npm test` pass in full.
   - _Requirements: 2.2, 3.1, 4.1, 5.1, 5.3, 5.5, 6.1 to 6.3, 9.7_
 
 - [ ] 5. Vault format document
