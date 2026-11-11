@@ -18,6 +18,8 @@ The file name matches the default format of Obsidian's Daily Notes plugin, so yo
 
 The [future log](#future-log) is one plain note, next to the daily notes, at `<vault>/<folder>/Future.md`.
 
+The [monthly note](#monthly-note), which holds the summary of one past month, is stored at `<vault>/<folder>/Monthly/YYYY-MM.md`.
+
 ## Example
 
 ```markdown
@@ -343,6 +345,90 @@ The earlier version of dibujo kept the future log as one note per year, at `<vau
 - Month sections are not copied. An entry that had no `⏳` date stays without a date, so one that was only under a month heading no longer has a month. A line in an old note that isn't blank, a heading, or a bullet is not copied, and `dibujo future import` lists it.
 - While old notes still have something to copy, `dibujo future show` and `dibujo future due` list their paths under `legacyNotes`.
 
+## Monthly note
+
+At the start of a month, the monthly migration ritual looks back at the month before. `dibujo month summary` writes a short summary of that month into one note per month:
+
+```
+<vault>/<folder>/Monthly/YYYY-MM.md
+```
+
+dibujo creates the note when it writes the summary. Daily notes and the future log are not changed by it. The paper monthly log (a calendar and a task list) is not copied: the monthly note holds only the summary.
+
+```markdown
+---
+dibujo: 1
+type: monthly
+month: 2026-10
+---
+
+# October 2026 summary
+
+## Highlights
+
+- moved into the new flat
+- finished the first draft of the zine
+
+## Tasks done
+
+23
+
+## Tasks that kept moving
+
+- call the bank (moved 5 times)
+- renew passport (moved 3 times)
+
+## Themes and intentions
+
+### Themes
+
+- settling into the new flat
+- slept badly most weeks
+
+### Intentions
+
+- go to bed by 11
+- one zine page a week
+```
+
+### Frontmatter
+
+| Field | Meaning |
+| --- | --- |
+| `dibujo` | Format version. Still `1`. |
+| `type` | Always `monthly`. |
+| `month` | The month, `YYYY-MM`. |
+
+dibujo writes the frontmatter only when it creates the note, and never edits the frontmatter of an existing note. A monthly note newer than the CLI supports is never written to.
+
+### Sections
+
+The summary is a title and four sections, each under its own `## ` heading, in this order. The title is `# <Month name> <year> summary`, with the English month name.
+
+| Section | What dibujo writes |
+| --- | --- |
+| `## Highlights` | A few short bullets about what happened, from the agent's draft, which you confirmed. If there are none: `Nothing this month.` |
+| `## Tasks done` | A number, counted by dibujo. `0` when none were done. |
+| `## Tasks that kept moving` | One line per moving task: its latest text and how many times it moved. If there are none: `No task moved 3 or more times.` (with your `migrationFlagDays`). |
+| `## Themes and intentions` | Two sub-sections, `### Themes` and `### Intentions`, each with a few short bullets. If there are none: `None.` |
+
+- The bullets in the summary are plain list items (`- text`). They are not Bullet Journal bullets, and dibujo never parses them.
+- The note has no tags, no links, and no data blocks, so it reads well in Obsidian with no plugins.
+- Every monthly note has the same shape: a section with nothing in it keeps its heading and gets the short line above.
+
+### How the numbers are counted
+
+- **Tasks done** is the number of completed tasks (`[x]`) in the month's daily notes. A task counts once, even if it was migrated through several notes first, because only its last copy is completed.
+- **Tasks that kept moving.** dibujo follows origin links between the month's notes, as it does for [migration streaks](#migration-streaks), but the days don't need to be in a row. A task has moved once each time it was migrated (`[>]`) or scheduled (`[<]`) out of a note in the month. A trip through the future log joins the chain and counts as one move. A task is listed when it moved at least `migrationFlagDays` times (3 by default). A move into the month's first note from the month before is not counted, and a broken link ends the chain. Each task is listed once, and a task nested under another moves with its parent, so it is not listed on its own.
+
+### How a summary is recognized
+
+A note has a summary when it has any of the four section headings (`## Highlights`, `## Tasks done`, `## Tasks that kept moving`, `## Themes and intentions`) as an H2, in any case, outside code fences. The title and the text are not checked.
+
+- **dibujo never changes a note that has a summary.** You can edit its text by hand. Running `dibujo month summary` again with the same input reports `unchanged`, and with different input it stops with `SUMMARY_EXISTS`.
+- A note you made by hand with other headings (for example `## Reading`) has no summary. dibujo appends the summary after its last line and keeps everything you wrote.
+- If you delete all four headings, the month is pending again.
+
 ## How dibujo writes to a note
 
 When you add a capture, dibujo:
@@ -418,5 +504,7 @@ Origin links contain the folder path: `Bujo/Daily/...` for a daily note, and `Bu
 ## Versioning
 
 This is version 1 of the format. Task fields (origin links, scheduled dates, and block ids) were added within version 1, because they're optional and every older note is still valid. The future log was added within version 1 too. It is a new kind of note (`type: future`), `Future.md`, which no older CLI reads or writes. The event date (`📅`) is an optional field on events, and a future log link has no year.
+
+The monthly note was added within version 1 as well. It is a new kind of note (`type: monthly`), `Monthly/YYYY-MM.md`, which no older CLI reads or writes, and it changes no existing note: daily notes and the future log keep their format.
 
 The version stays at 1 for the flat future log as well, because the year-based future log was never in a published release. The only notes written in that layout are the ones from development, and `dibujo future import` carries them over. An older CLI that meets a future link keeps it as plain text, because it doesn't know the future log. If a future version changes the format (for example, a different event marker), it will raise the `dibujo` number, and the CLI will be able to recognize older notes and upgrade them.

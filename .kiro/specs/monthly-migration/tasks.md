@@ -69,23 +69,23 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 6.3 One end-to-end test in `tests/cli/month.test.ts`, in the style of `tests/cli/task.test.ts`: with notes in October and a clock in November, `task review --json` reports `pendingMonth` for `2026-10`; `month show --json` lists a leftover; `task migrate` on it succeeds; `month summary --json` with stdin writes the note; then `task review --json` reports `pendingMonth: null`. Every `--json` output must parse. In the same file, check that `month show 2026-11` with a November clock exits with code 2.
   - _Requirements: 1, 6, 7, 10.4_
 
-- [ ] 7. Vault format document
+- [x] 7. Vault format document
   - _Depends on: 6. Can run at the same time as tasks 8 and 9._
-  - [ ] 7.1 Update `docs/vault-format.md`, following "Format document" in the design: the location in "Where notes live", a "Monthly note" section with the example, how tasks done and moving tasks are counted, how a summary is recognized, that dibujo never changes a note with a summary, and "Versioning" (still 1, and why).
-  - [ ] 7.2 In `tests/docs/vault-format.test.ts`, add one test that takes the monthly note example from the document and checks `hasSummary` is true.
+  - [x] 7.1 Update `docs/vault-format.md`, following "Format document" in the design: the location in "Where notes live", a "Monthly note" section with the example, how tasks done and moving tasks are counted, how a summary is recognized, that dibujo never changes a note with a summary, and "Versioning" (still 1, and why).
+  - [x] 7.2 In `tests/docs/vault-format.test.ts`, add one test that takes the monthly note example from the document and checks `hasSummary` is true.
   - _Requirements: 10.1 to 10.3_
 
-- [ ] 8. The `monthly-migration` skill
+- [x] 8. The `monthly-migration` skill
   - _Depends on: 6. Can run at the same time as tasks 7 and 9._
-  - [ ] 8.1 Create `skills/monthly-migration/SKILL.md`, following "`monthly-migration` (new)" in the design. Match the style and structure of `skills/morning-planning/SKILL.md`: a short intro, a Rules section, numbered steps, choice tables, and the error table for saving. Reuse its wording for the choices, flagged tasks, and children instead of inventing new wording.
-  - [ ] 8.2 Keep the frontmatter to `name` and `description`. Link to `references/vault-format.md`, and don't restate the note format. Use only commands that exist (`dibujo month show`, `dibujo month summary`, `dibujo task migrate|schedule|set`, `dibujo future due|migrate|reschedule|cancel`), always with `--json`.
-  - [ ] 8.3 The existing test that checks every skill's frontmatter must pass for the new skill.
+  - [x] 8.1 Create `skills/monthly-migration/SKILL.md`, following "`monthly-migration` (new)" in the design. Match the style and structure of `skills/morning-planning/SKILL.md`: a short intro, a Rules section, numbered steps, choice tables, and the error table for saving. Reuse its wording for the choices, flagged tasks, and children instead of inventing new wording.
+  - [x] 8.2 Keep the frontmatter to `name` and `description`. Link to `references/vault-format.md`, and don't restate the note format. Use only commands that exist (`dibujo month show`, `dibujo month summary`, `dibujo task migrate|schedule|set`, `dibujo future due|migrate|reschedule|cancel`), always with `--json`.
+  - [x] 8.3 The existing test that checks every skill's frontmatter must pass for the new skill.
   - _Requirements: 8.1 to 8.14_
 
-- [ ] 9. Update the `morning-planning` skill and the README
+- [x] 9. Update the `morning-planning` skill and the README
   - _Depends on: 6. Can run at the same time as tasks 7 and 8._
-  - [ ] 9.1 In `skills/morning-planning/SKILL.md`: keep `data.pendingMonth` in step 2, add step 12 after the report as in the design, mention it in the opening paragraph's list of steps, and add "offers the monthly migration when a new month starts" to the `description`. No other step changes.
-  - [ ] 9.2 In `README.md`, add a `monthly-migration` row to the skills table, with what it does and example phrases ("Do my monthly migration", "summarize last month").
+  - [x] 9.1 In `skills/morning-planning/SKILL.md`: keep `data.pendingMonth` in step 2, add step 12 after the report as in the design, mention it in the opening paragraph's list of steps, and add "offers the monthly migration when a new month starts" to the `description`. No other step changes.
+  - [x] 9.2 In `README.md`, add a `monthly-migration` row to the skills table, with what it does and example phrases ("Do my monthly migration", "summarize last month").
   - _Requirements: 9.1 to 9.5, 10.5_
 
 - [ ] 10. Final checks

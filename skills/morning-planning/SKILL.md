@@ -1,13 +1,13 @@
 ---
 name: morning-planning
-description: Run the user's Bullet Journal morning planning in their Obsidian vault. Walk through yesterday's open tasks one at a time (migrate, schedule with or without a date, cancel, complete, or leave open) to mirror their paper notebook, then go through the tasks that have come due in the future log (bring in, give another date, cancel, or leave), mention today's events, offer a look at the rest of the future log so the user can bring tasks into today, then capture a morning brain-dump as bullets in today's note. Use when the user wants to plan their morning, start their day, do their morning ritual, migrate yesterday's tasks, or see which scheduled tasks are due.
+description: Run the user's Bullet Journal morning planning in their Obsidian vault. Walk through yesterday's open tasks one at a time (migrate, schedule with or without a date, cancel, complete, or leave open) to mirror their paper notebook, then go through the tasks that have come due in the future log (bring in, give another date, cancel, or leave), mention today's events, offer a look at the rest of the future log so the user can bring tasks into today, then capture a morning brain-dump as bullets in today's note. Offers the monthly migration when a new month starts and last month has no summary yet. Use when the user wants to plan their morning, start their day, do their morning ritual, migrate yesterday's tasks, or see which scheduled tasks are due.
 ---
 
 # Morning planning
 
 The user's paper notebook is their main journal. They've usually just done their morning migration on paper. Your job is to mirror it in the vault, check whether any scheduled tasks have come due in the future log, then capture what's on their mind, using the `dibujo` CLI. dibujo records what the user decided. It never decides for them.
 
-The ritual has seven steps, always in this order: **migration**, **due future log entries**, **today's events**, **the rest of the future log**, **brain-dump**, **priority**, then **confirm and save**. Ask one thing at a time and keep it short. Nothing is written until the user confirms the whole plan in step 9.
+The ritual has seven steps, always in this order: **migration**, **due future log entries**, **today's events**, **the rest of the future log**, **brain-dump**, **priority**, then **confirm and save**. After the report, when a new month has started and last month has no summary yet, it offers the **monthly migration** (step 12). Ask one thing at a time and keep it short. Nothing is written until the user confirms the whole plan in step 9.
 
 The note format, including bullet types, task states, migration links, the future log, and the capture JSON schema, is defined in [references/vault-format.md](references/vault-format.md).
 
@@ -32,8 +32,8 @@ Run `dibujo --version`. If the command isn't found, use `npx -y digi-bujo` in pl
 dibujo task review --json
 ```
 
-- `"ok": true`: `data.tasks` lists yesterday's open tasks. Each has a `ref`, `text`, `signifiers`, `streak`, `since`, `flagged`, and `children` (the bullets nested under it, which move with it).
-- `data.tasks` is empty: say so in one line ("Nothing open from yesterday.") and go to step 4.
+- `"ok": true`: `data.tasks` lists yesterday's open tasks. Each has a `ref`, `text`, `signifiers`, `streak`, `since`, `flagged`, and `children` (the bullets nested under it, which move with it). Keep `data.pendingMonth` for step 12: it is `null`, or `{ "month": "2026-10", "path": "..." }` when last month has daily notes and no monthly summary yet.
+- `data.tasks` is empty: say so in one line ("Nothing open from yesterday.") and go to step 4. Still keep `data.pendingMonth`.
 - `error.code` is `CONFIG_MISSING` or `VAULT_NOT_FOUND`: tell the user to run `dibujo init` (show `error.hint`), and stop.
 - Any other error: show `error.message` and `error.hint`, and stop.
 
@@ -222,3 +222,14 @@ Tell the user, briefly, what was saved and what wasn't, task by task:
 - `log add`: `data.status` is `created` or `updated` (saved `data.added` bullets to `data.path`) or `unchanged` (already logged).
 
 Say which due entries were left for now, and that they'll come up again tomorrow. Tasks without a date wait in the future log until the user looks at the list again. For anything that failed, say clearly that it was **not saved**, and show `error.message` and `error.hint`.
+
+### 12. Monthly migration
+
+This step comes **after the report**, so the plan above is already saved. It also applies when step 9 found nothing to save: go straight here instead of stopping. If `data.pendingMonth` from step 2 is `null`, say nothing about it and stop.
+
+Otherwise ask once: **"It's a new month. Would you like to do the monthly migration for {month name} now?"** Write `{month name}` as the month's name and year, for example "October 2026".
+
+- "yes": load the `monthly-migration` skill and follow it for `data.pendingMonth.month`.
+- "no", "later", or "skip": end the morning planning. Don't ask again today. The offer comes again the next morning while the month has no summary.
+
+Never start the monthly migration without a yes, and never fold its confirmations into this ritual's.

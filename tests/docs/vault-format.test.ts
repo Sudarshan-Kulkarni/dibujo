@@ -5,6 +5,7 @@ import { formatBullet, parseBulletLine } from "../../src/bujo/bullet.js";
 import { parseCapture } from "../../src/bujo/capture.js";
 import { parseFutureNote } from "../../src/bujo/future.js";
 import { parseFutureAdd } from "../../src/bujo/future-input.js";
+import { hasSummary } from "../../src/bujo/monthly-note.js";
 import { parseDailyNote } from "../../src/bujo/note.js";
 
 const doc = readFileSync(
@@ -153,5 +154,9 @@ describe("docs/vault-format.md", () => {
 
   it("has a future log input example that passes validation", () => {
     expect(parseFutureAdd(blockAfter("### Adding to the future log", "json"))).toHaveLength(3);
+  });
+
+  it("has a monthly note example that has a summary", () => {
+    expect(hasSummary(blockAfter("## Monthly note", "markdown"))).toBe(true);
   });
 });
