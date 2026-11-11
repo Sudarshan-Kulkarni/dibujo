@@ -17,8 +17,8 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
 
 ---
 
-- [ ] 1. Pure logic
-  - [ ] 1.1 `src/bujo/types.ts`, `bullet.ts`, `capture.ts`. Follow "Fields on a line" and "Links" in the design.
+- [x] 1. Pure logic
+  - [x] 1.1 `src/bujo/types.ts`, `bullet.ts`, `capture.ts`. Follow "Fields on a line" and "Links" in the design.
     - Add `eventDate?: string` to `Bullet`. Change `FutureOrigin` to `{ blockId: string; year?: string }`.
     - Add `TRAILING_EVENT_DATE` (`📅` with an optional variation selector, then `YYYY-MM-DD`). Make `splitFields` take the bullet type: `⏳` and the origin link are read on tasks only, and `📅` on events only. On other types, they stay in the text.
     - Make `formatBullet` write `📅 <date>` for an event, in the same slot as `⏳` (after the tags, before the block id).
@@ -27,14 +27,14 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `fingerprint()`: a daily origin hashes exactly as now. A future origin hashes as `{ blockId }`. The event date is not part of the fingerprint.
     - `capture.ts`: `BulletText` also rejects text containing `📅`.
     - `src/cli/bullet-symbols.ts`: print `future log` without a year, and a `📅` suffix for event dates.
-  - [ ] 1.2 `src/bujo/ref.ts`. `FutureRef` becomes `{ line, fingerprint }`, in the shape `<line>:<8 hex>`. `parseFutureRef` rejects the daily shape and the old three-part year shape with `INVALID_REF`, and its hint says to run `dibujo future show` or `dibujo future due` for fresh refs. `parseRef` keeps its behavior, and its hint points to the future shape when the value has it.
-  - [ ] 1.3 `src/bujo/future.ts`. Rewrite it as in "Pure logic" in the design: `newFutureTemplate()`, `parseFutureNote`, `appendFutureEntries`, `dueEntries`, `eventsOn`, `otherWaiting`. Delete the month and year code, `findLive`, and the `LocatedEntry` and `LiveEntry` types.
+  - [x] 1.2 `src/bujo/ref.ts`. `FutureRef` becomes `{ line, fingerprint }`, in the shape `<line>:<8 hex>`. `parseFutureRef` rejects the daily shape and the old three-part year shape with `INVALID_REF`, and its hint says to run `dibujo future show` or `dibujo future due` for fresh refs. `parseRef` keeps its behavior, and its hint points to the future shape when the value has it.
+  - [x] 1.3 `src/bujo/future.ts`. Rewrite it as in "Pure logic" in the design: `newFutureTemplate()`, `parseFutureNote`, `appendFutureEntries`, `dueEntries`, `eventsOn`, `otherWaiting`. Delete the month and year code, `findLive`, and the `LocatedEntry` and `LiveEntry` types.
     - `parseFutureNote` skips the frontmatter, blank lines, and Markdown headings, and turns each bullet into an entry with its line number. Other lines are unrecognized.
     - `appendFutureEntries(original, lines)` appends after the last non-blank line, adds a blank line only after the end of the frontmatter, keeps the line ending style, and checks that every original line is still there in order (`isSubsequence`).
     - Reuse `findFrontmatterEnd`, `readVersion`, `splitLines`, `lastNonBlank`, and `isSubsequence` from `src/bujo/note.ts`. Export what you need.
-  - [ ] 1.4 `src/bujo/future-input.ts` (new). Follow "future-input.ts" in the design: the zod schemas, `parseFutureAdd`, and `planAdd` (past dates, notes with dates, and duplicates).
-  - [ ] 1.5 `src/bujo/future-import.ts` (new). Follow "future-import.ts" in the design: `planImport` with its six rules (what is copied, flattening origins, block ids, already imported, how lines are copied, unreadable lines).
-  - [ ] 1.6 Tests (core only):
+  - [x] 1.4 `src/bujo/future-input.ts` (new). Follow "future-input.ts" in the design: the zod schemas, `parseFutureAdd`, and `planAdd` (past dates, notes with dates, and duplicates).
+  - [x] 1.5 `src/bujo/future-import.ts` (new). Follow "future-import.ts" in the design: `planImport` with its six rules (what is copied, flattening origins, block ids, already imported, how lines are copied, unreadable lines).
+  - [x] 1.6 Tests (core only):
     - `tests/bujo/bullet.test.ts`: `📅` is read on an event and stays in the text on a task and a note; the three origin forms read as the table says, including a link whose target and folder disagree (`[[Books/Future#^abc]]`, `[[Bujo/Daily/2026#^abc]]`), which must stay in the text; a future origin is written without a year; an old-form and a new-form link give the same fingerprint. Keep the existing test that pins the fingerprint of a daily origin.
     - `tests/helpers/arbitraries.ts` and `tests/bujo/bullet.property.test.ts`: generated bullets can be events with a date, and tasks with either origin kind. The existing round-trip property must still hold.
     - `tests/bujo/ref.test.ts`: replace the old future-ref tests with a round trip for `<line>:<fingerprint>` and rejection of the daily and year-form shapes.
