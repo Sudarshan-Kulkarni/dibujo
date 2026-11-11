@@ -92,12 +92,12 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 6.4 In `README.md`, add one line to "Set up" about the future log (`dibujo future import` if you used the earlier version). Don't add anything else.
   - _Requirements: 8.1 to 8.11, 9.1 to 9.6, 9.9, 10.5_
 
-- [ ] 7. Wrap-up
+- [x] 7. Wrap-up
   - _Depends on: 6_
-  - [ ] 7.1 `npm run format`, `npm run check`, `npm test`, and `npm run build` pass. `npm pack --dry-run` lists `skills/future-log/SKILL.md`.
-  - [ ] 7.2 Run the CLI from `dist/` against a **scratch vault in a temporary directory** (never a real vault). Put an old-style `Future/2026.md` in it, with month headings and a rescheduled chain, and a hand-written `## December` section. Then: `future show` (check `legacyNotes`), `future import --dry-run`, `future import`, `future import` again (nothing added), `future add` with a dated event, an undated task, and a note, `task schedule` with and without a date, `future due --date <later day>`, `future migrate`, `future reschedule`, `future cancel`. Note in the pull request anything that behaved differently from the design.
-  - [ ] 7.3 Remove the scratch vault and any temporary files.
-  - [ ] 7.4 In the pull request description, list the `--json` changes from the design, and say that `dibujo skills install` must be run after updating.
+  - [x] 7.1 `npm run format`, `npm run check`, `npm test`, and `npm run build` pass. `npm pack --dry-run` lists `skills/future-log/SKILL.md`.
+  - [x] 7.2 Run the CLI from `dist/` against a **scratch vault in a temporary directory** (never a real vault). Put an old-style `Future/2026.md` in it, with month headings and a rescheduled chain, and a hand-written `## December` section. Then: `future show` (check `legacyNotes`), `future import --dry-run`, `future import`, `future import` again (nothing added), `future add` with a dated event, an undated task, and a note, `task schedule` with and without a date, `future due --date <later day>`, `future migrate`, `future reschedule`, `future cancel`. Note in the pull request anything that behaved differently from the design.
+  - [x] 7.3 Remove the scratch vault and any temporary files.
+  - [x] 7.4 In the pull request description, list the `--json` changes from the design, and say that `dibujo skills install` must be run after updating.
 
 ---
 
