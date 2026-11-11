@@ -14,13 +14,16 @@ describe("bullet properties", () => {
     );
   });
 
-  it("keeps the fingerprint when only state, scheduled date, or block id change", () => {
+  it("keeps the fingerprint when only state, dates, or block id change", () => {
     fc.assert(
       fc.property(bullet, isoDate, blockId, (b, date, id) => {
         const before = fingerprint(b);
         if (b.type === "task") {
           expect(fingerprint({ ...b, state: "migrated" })).toBe(before);
           expect(fingerprint({ ...b, scheduled: date })).toBe(before);
+        }
+        if (b.type === "event") {
+          expect(fingerprint({ ...b, eventDate: date })).toBe(before);
         }
         expect(fingerprint({ ...b, blockId: id })).toBe(before);
       }),

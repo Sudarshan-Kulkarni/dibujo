@@ -52,33 +52,52 @@ describe("refs", () => {
 });
 
 describe("future refs", () => {
+  it("formats and parses a ref", () => {
+    expect(formatFutureRef(14, "9c04e7d1")).toBe("14:9c04e7d1");
+    expect(parseFutureRef("14:9c04e7d1")).toEqual({ line: 14, fingerprint: "9c04e7d1" });
+  });
+
   it("round-trips any future ref", () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 0, max: 9999 }).map((n) => String(n).padStart(4, "0")),
         fc.integer({ min: 1, max: 9_999_999 }),
         fc.stringMatching(/^[0-9a-f]{8}$/),
-        (year, line, fp) => {
-          expect(parseFutureRef(formatFutureRef(year, line, fp))).toEqual({
-            year,
-            line,
-            fingerprint: fp,
-          });
+        (line, fp) => {
+          expect(parseFutureRef(formatFutureRef(line, fp))).toEqual({ line, fingerprint: fp });
         },
       ),
     );
   });
 
-  it("points each parser at the other kind of ref", () => {
-    const hint = (fn: () => unknown): string => {
-      try {
-        fn();
-      } catch (error) {
-        return (error as DibujoError).hint ?? "";
-      }
-      return "";
-    };
-    expect(hint(() => parseFutureRef("2026-11-09:7:9c04e7d1"))).toContain("dibujo task");
-    expect(hint(() => parseRef("2026:14:9c04e7d1"))).toContain("dibujo future");
+  const codeOf = (fn: () => unknown): { code?: string; hint?: string } => {
+    try {
+      fn();
+    } catch (error) {
+      return { code: (error as DibujoError).code, hint: (error as DibujoError).hint };
+    }
+    return {};
+  };
+
+  it.each([
+    ["a daily ref", "2026-11-09:7:9c04e7d1"],
+    ["the old year form", "2026:14:9c04e7d1"],
+    ["no fingerprint", "14"],
+    ["a line of 0", "0:9c04e7d1"],
+    ["a leading zero", "014:9c04e7d1"],
+    ["an upper-case fingerprint", "14:9C04E7D1"],
+    ["a short fingerprint", "14:9c04e7d"],
+    ["trailing text", "14:9c04e7d1; rm -rf ~"],
+    ["nothing", ""],
+  ])("rejects %s with INVALID_REF and a hint to get fresh refs", (_name, value) => {
+    const { code, hint } = codeOf(() => parseFutureRef(value));
+    expect(code).toBe("INVALID_REF");
+    expect(hint).toContain("dibujo future show");
+    expect(hint).toContain("dibujo future due");
+  });
+
+  it("tells a daily ref apart, and points each parser at the other kind of ref", () => {
+    expect(codeOf(() => parseFutureRef("2026-11-09:7:9c04e7d1")).hint).toContain("dibujo task");
+    expect(codeOf(() => parseRef("14:9c04e7d1")).hint).toContain("dibujo future");
+    expect(codeOf(() => parseRef("2026:14:9c04e7d1")).code).toBe("INVALID_REF");
   });
 });

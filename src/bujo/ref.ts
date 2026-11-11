@@ -34,31 +34,35 @@ export function parseRef(value: string): Ref {
   );
 }
 
-/** Points at one entry in a future log note: the note's year, its 1-based line, and its fingerprint. */
+/** Points at one entry in the future log: its 1-based line and its fingerprint. */
 export interface FutureRef {
-  year: string;
   line: number;
   fingerprint: string;
 }
 
-const FUTURE_REF_SHAPE = /^(\d{4}):([1-9]\d{0,6}):([0-9a-f]{8})$/;
+const FUTURE_REF_SHAPE = /^([1-9]\d{0,6}):([0-9a-f]{8})$/;
+const FRESH_REFS = "Get fresh refs from `dibujo future show --json` or `dibujo future due --json`";
 
-export function formatFutureRef(year: string, line: number, fingerprint: string): string {
-  return `${year}:${line}:${fingerprint}`;
+export function formatFutureRef(line: number, fingerprint: string): string {
+  return `${line}:${fingerprint}`;
 }
 
-/** Parses `YYYY:<line>:<fingerprint>`. Throws `INVALID_REF` for anything else. */
+/**
+ * Parses `<line>:<fingerprint>`. Throws `INVALID_REF` for anything else, including a
+ * daily ref (three parts, starting with a date) and the year form the earlier future
+ * log used (`YYYY:<line>:<fingerprint>`).
+ */
 export function parseFutureRef(value: string): FutureRef {
   const match = FUTURE_REF_SHAPE.exec(value);
   if (match) {
-    const [, year = "", line = "", fp = ""] = match;
-    return { year, line: Number(line), fingerprint: fp };
+    const [, line = "", fp = ""] = match;
+    return { line: Number(line), fingerprint: fp };
   }
   throw new DibujoError(
     "INVALID_REF",
     `Invalid future log ref "${value}".`,
     REF_SHAPE.test(value)
-      ? "This looks like a daily task ref, use `dibujo task ...` commands with it. Future log refs come from `dibujo future show --json` or `dibujo future due --json`, like 2026:14:9c04e7d1."
-      : "Use a ref from `dibujo future show --json` or `dibujo future due --json`, like 2026:14:9c04e7d1.",
+      ? `This looks like a daily task ref, use \`dibujo task ...\` commands with it. ${FRESH_REFS}, like 14:9c04e7d1.`
+      : `${FRESH_REFS}, like 14:9c04e7d1. Refs from the earlier year-based future log no longer work.`,
   );
 }

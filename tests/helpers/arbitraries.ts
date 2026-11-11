@@ -50,17 +50,21 @@ export const isoDate: fc.Arbitrary<string> = fc
 
 export const blockId: fc.Arbitrary<string> = fc.stringMatching(/^[A-Za-z0-9-]{1,8}$/);
 
-export const isoYear: fc.Arbitrary<string> = fc.integer({ min: 2000, max: 2099 }).map(String);
-
-/** An origin link target: a daily note or a future log note. */
+/**
+ * An origin link target: a daily note or the future log. A future origin has no year,
+ * because dibujo never writes one (a year is only read from old-form links).
+ */
 export const origin: fc.Arbitrary<Origin> = fc.oneof(
   fc.record({ date: isoDate, blockId }),
-  fc.record({ year: isoYear, blockId }),
+  fc.record({ blockId }),
 );
 
 export const signifiers = fc.subarray([...SIGNIFIERS]);
 
-/** A bullet that dibujo could write, including the fields added by migration and scheduling. */
+/**
+ * A bullet that dibujo could write, including the fields added by migration and
+ * scheduling: tasks with a daily or future origin, and events with a date.
+ */
 export const bullet: fc.Arbitrary<Bullet> = fc
   .record({
     type: fc.constantFrom(...BULLET_TYPES),
@@ -70,6 +74,7 @@ export const bullet: fc.Arbitrary<Bullet> = fc
     depth: fc.integer({ min: 0, max: MAX_WRITE_DEPTH }),
     origin: fc.option(origin, { nil: undefined }),
     scheduled: fc.option(isoDate, { nil: undefined }),
+    eventDate: fc.option(isoDate, { nil: undefined }),
     blockId: fc.option(blockId, { nil: undefined }),
   })
   .map((r) => {
@@ -79,6 +84,7 @@ export const bullet: fc.Arbitrary<Bullet> = fc
       if (r.origin) b.origin = r.origin;
       if (r.scheduled) b.scheduled = r.scheduled;
     }
+    if (r.type === "event" && r.eventDate) b.eventDate = r.eventDate;
     if (r.blockId) b.blockId = r.blockId;
     return b;
   });

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Bullet, Origin, Signifier, TaskState } from "./types.js";
+import type { Bullet, BulletType, Origin, Signifier, TaskState } from "./types.js";
 
 const CHECKBOX_TO_STATE: Readonly<Record<string, TaskState>> = {
   " ": "open",
@@ -29,8 +29,11 @@ const NOTE_LINE = /^(\s*)[-+] (.*)$/;
 const TRAILING_SIGNIFIER = /\s+#(priority|inspiration)$/i;
 const TRAILING_BLOCK_ID = /\s+\^([A-Za-z0-9-]+)$/;
 const TRAILING_SCHEDULED = /\s+⏳\uFE0F?\s*(\d{4}-\d{2}-\d{2})$/;
-const TRAILING_ORIGIN =
-  /\s+\[\[([^[\]|#]*?)(\d{4}-\d{2}-\d{2}|\d{4})#\^([A-Za-z0-9-]+)(?:\|[^[\]]*)?\]\]$/;
+const TRAILING_EVENT_DATE = /\s+📅\uFE0F?\s*(\d{4}-\d{2}-\d{2})$/;
+/** Captures the whole link target. `originFrom` decides whether it points at a daily or future note. */
+const TRAILING_ORIGIN = /\s+\[\[([^[\]|#]+)#\^([A-Za-z0-9-]+)(?:\|[^[\]]*)?\]\]$/;
+const DAILY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+const YEAR_KEY = /^\d{4}$/;
 
 /** Columns per nesting level. A tab counts as one full level. */
 const INDENT_WIDTH = 4;
@@ -74,7 +77,8 @@ export interface FormatOptions {
 
 /**
  * Formats a bullet as one Markdown line, using a tab per nesting level. Fields go
- * in a fixed order: text, origin link, signifier tags, scheduled date, block id.
+ * in a fixed order: text, origin link, signifier tags, date (`⏳` on a task, `📅` on
+ * an event), block id.
  */
 export function formatBullet(bullet: Bullet, options: FormatOptions = {}): string {
   const indent = "\t".repeat(bullet.depth);
@@ -87,21 +91,23 @@ export function formatBullet(bullet: Bullet, options: FormatOptions = {}): strin
   const origin = bullet.origin ? ` ${formatOriginLink(bullet.origin, options.folder)}` : "";
   const tags = bullet.signifiers.map((s) => ` #${s}`).join("");
   const scheduled = bullet.scheduled ? ` ⏳ ${bullet.scheduled}` : "";
+  const eventDate = bullet.type === "event" && bullet.eventDate ? ` 📅 ${bullet.eventDate}` : "";
   const blockId = bullet.blockId ? ` ^${bullet.blockId}` : "";
-  return `${indent}${marker}${bullet.text}${origin}${tags}${scheduled}${blockId}`;
+  return `${indent}${marker}${bullet.text}${origin}${tags}${scheduled}${eventDate}${blockId}`;
 }
 
 /**
  * `[[<folder>/Daily/<date>#^<id>|from <date>]]` for a daily origin and
- * `[[<folder>/Future/<year>#^<id>|from future log <year>]]` for a future one.
- * Without a folder, only the note's file name is used.
+ * `[[<folder>/Future#^<id>|from future log]]` for a future one. Without a folder,
+ * only the note's file name is used. A future link never has a year, even when the
+ * origin was read from an old-form link.
  */
 export function formatOriginLink(origin: Origin, folder?: string): string {
   const root = folder ? `${folder.replace(/\\/g, "/").replace(/\/+$/, "")}/` : "";
   if ("date" in origin) {
     return `[[${root}${folder ? "Daily/" : ""}${origin.date}#^${origin.blockId}|from ${origin.date}]]`;
   }
-  return `[[${root}${folder ? "Future/" : ""}${origin.year}#^${origin.blockId}|from future log ${origin.year}]]`;
+  return `[[${root}Future#^${origin.blockId}|from future log]]`;
 }
 
 /** The checkbox character written for a task state. */
@@ -125,11 +131,15 @@ export function fingerprint(bullet: Bullet): string {
   return createHash("sha256").update(JSON.stringify(identity)).digest("hex").slice(0, 8);
 }
 
-/** The origin fields that count towards a fingerprint. A daily origin keeps its original shape. */
+/**
+ * The origin fields that count towards a fingerprint. A daily origin keeps its original
+ * shape. A future origin counts only its block id, so an old-form link (with a year)
+ * and a new-form link to the same entry give the same fingerprint.
+ */
 function identityOf(origin: Origin): Origin {
   return "date" in origin
     ? { date: origin.date, blockId: origin.blockId }
-    : { year: origin.year, blockId: origin.blockId };
+    : { blockId: origin.blockId };
 }
 
 function build(
@@ -138,7 +148,7 @@ function build(
   rest: string,
   state?: TaskState,
 ): Bullet | null {
-  const fields = splitFields(rest, type === "task");
+  const fields = splitFields(rest, type);
   if (fields.text.length === 0) return null;
   const bullet: Bullet = {
     type,
@@ -149,6 +159,7 @@ function build(
   if (state) bullet.state = state;
   if (fields.origin) bullet.origin = fields.origin;
   if (fields.scheduled) bullet.scheduled = fields.scheduled;
+  if (fields.eventDate) bullet.eventDate = fields.eventDate;
   if (fields.blockId) bullet.blockId = fields.blockId;
   return bullet;
 }
@@ -158,15 +169,19 @@ interface Fields {
   signifiers: Signifier[];
   origin?: Origin;
   scheduled?: string;
+  eventDate?: string;
   blockId?: string;
 }
 
 /**
- * Removes fields from the end of the text, in any order: signifier tags, block id,
- * and, on tasks, the scheduled date and origin link. Stops at the first token that
+ * Removes fields from the end of the text, in any order: signifier tags and block id
+ * on any bullet, the scheduled date and origin link on tasks only, and the event date
+ * on events only. On other types those stay in the text. Stops at the first token that
  * isn't a field. A second block id, date, or link stays in the text.
  */
-function splitFields(rest: string, isTask: boolean): Fields {
+function splitFields(rest: string, type: BulletType): Fields {
+  const isTask = type === "task";
+  const isEvent = type === "event";
   let text = rest.trimEnd();
   const found: Signifier[] = [];
   const fields: Omit<Fields, "text" | "signifiers"> = {};
@@ -191,10 +206,15 @@ function splitFields(rest: string, isTask: boolean): Fields {
       text = text.slice(0, scheduled.index).trimEnd();
       continue;
     }
+    const eventDate =
+      isEvent && fields.eventDate === undefined ? TRAILING_EVENT_DATE.exec(text) : null;
+    if (eventDate?.[1]) {
+      fields.eventDate = eventDate[1];
+      text = text.slice(0, eventDate.index).trimEnd();
+      continue;
+    }
     const origin = isTask && fields.origin === undefined ? TRAILING_ORIGIN.exec(text) : null;
-    const parsedOrigin = origin
-      ? originFrom(origin[1] ?? "", origin[2] ?? "", origin[3] ?? "")
-      : null;
+    const parsedOrigin = origin ? originFrom(origin[1] ?? "", origin[2] ?? "") : null;
     if (origin && parsedOrigin) {
       fields.origin = parsedOrigin;
       text = text.slice(0, origin.index).trimEnd();
@@ -208,16 +228,34 @@ function splitFields(rest: string, isTask: boolean): Fields {
 }
 
 /**
- * A `YYYY-MM-DD` key is a daily link and a `YYYY` key is a future link. Either way
- * the path before the key is empty (file name only) or ends in `Daily/` or `Future/`
- * to match. Any other link, like `[[Books/2026#^abc]]`, is not an origin.
+ * Decides what an origin link target points at, or `null` when it points at neither
+ * a daily note nor the future log (the link then stays in the text). The last part of
+ * the target is the note name, and the part before it must agree with the kind of note:
+ *
+ * | Target | Result |
+ * | --- | --- |
+ * | `YYYY-MM-DD`, or `<path>/Daily/YYYY-MM-DD` | daily origin |
+ * | `Future`, or `<path>/Future` | future origin, no year |
+ * | `YYYY`, or `<path>/Future/YYYY` (old form) | future origin with that year |
+ *
+ * So `Books/2026#^abc`, `Bujo/Daily/2026#^abc`, and `Bujo/Future/2026-11-08#^abc` are
+ * not origins. A target can't say which folder is the dibujo folder, so `<path>` in
+ * the table is any path.
  */
-function originFrom(path: string, key: string, blockId: string): Origin | null {
+export function originFrom(target: string, blockId: string): Origin | null {
   if (blockId === "") return null;
-  if (key.length === 10) {
-    return path === "" || path.endsWith("Daily/") ? { date: key, blockId } : null;
+  const parts = target.split("/");
+  const name = parts[parts.length - 1] ?? "";
+  const parent = parts.length > 1 ? parts[parts.length - 2] : undefined;
+
+  if (DAILY_KEY.test(name)) {
+    return parent === undefined || parent === "Daily" ? { date: name, blockId } : null;
   }
-  return path === "" || path.endsWith("Future/") ? { year: key, blockId } : null;
+  if (name === "Future") return { blockId };
+  if (YEAR_KEY.test(name)) {
+    return parent === undefined || parent === "Future" ? { blockId, year: name } : null;
+  }
+  return null;
 }
 
 /** Tabs are one level each. Spaces count in groups of 4, rounding up, so 2-space indents nest too. */

@@ -18,6 +18,8 @@ export interface Bullet {
   origin?: Origin;
   /** Tasks only: Tasks-plugin scheduled date (`⏳ YYYY-MM-DD`). */
   scheduled?: string;
+  /** Events only: the date the event happens on (`📅 YYYY-MM-DD`). */
+  eventDate?: string;
   /** Obsidian block id (`^id`) at the end of the line, without the caret. */
   blockId?: string;
 }
@@ -28,10 +30,14 @@ export interface DailyOrigin {
   blockId: string;
 }
 
-/** Points at an entry in a future log note: the note's year (`"2026"`) and the entry's block id. */
+/**
+ * Points at an entry in the future log note by its block id. `year` is set only when
+ * the link is in the old form that pointed at a year note (`Future/2026`). dibujo
+ * reads that form and never writes it.
+ */
 export interface FutureOrigin {
-  year: string;
   blockId: string;
+  year?: string;
 }
 
 /** Where a task came from. Narrow with `"date" in origin`. */
