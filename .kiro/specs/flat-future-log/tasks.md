@@ -78,10 +78,10 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 4.4 `npm run format`, `npm run check`, and `npm test` pass in full.
   - _Requirements: 2.2, 3.1, 4.1, 5.1, 5.3, 5.5, 6.1 to 6.3, 9.7_
 
-- [ ] 5. Vault format document
+- [x] 5. Vault format document
   - _Depends on: 4_
-  - [ ] 5.1 Update `docs/vault-format.md` as listed in "Format document" in the design. Keep the examples consistent with the CLI: they are parsed by `tests/docs/vault-format.test.ts`.
-  - [ ] 5.2 Update `tests/docs/vault-format.test.ts` for the new examples: the future log example parses with the flat parser, and its links agree. Remove the checks for months.
+  - [x] 5.1 Update `docs/vault-format.md` as listed in "Format document" in the design. Keep the examples consistent with the CLI: they are parsed by `tests/docs/vault-format.test.ts`.
+  - [x] 5.2 Update `tests/docs/vault-format.test.ts` for the new examples: the future log example parses with the flat parser, and its links agree. Remove the checks for months.
   - _Requirements: 10.1 to 10.3_
 
 - [ ] 6. Skills

@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { formatBullet, parseBulletLine } from "../../src/bujo/bullet.js";
 import { parseCapture } from "../../src/bujo/capture.js";
+import { parseFutureNote } from "../../src/bujo/future.js";
+import { parseFutureAdd } from "../../src/bujo/future-input.js";
 import { parseDailyNote } from "../../src/bujo/note.js";
 
 const doc = readFileSync(
@@ -121,5 +123,35 @@ describe("docs/vault-format.md", () => {
       signifiers: before?.signifiers,
       origin: { date: "2026-11-09", blockId: "r1a2b3" },
     });
+  });
+
+  it("has a future log example that parses as a flat note, with links that point at each other", () => {
+    const parsed = parseFutureNote(blockAfter("## Future log", "markdown"));
+    expect(parsed.version).toBe(1);
+    expect(parsed.unrecognized).toEqual([]);
+    expect(
+      parsed.entries.map((e) => [e.type, e.state, e.text, e.scheduled ?? e.eventDate]),
+    ).toEqual([
+      ["task", "open", "learn Rust", undefined],
+      ["task", "open", "book flights", "2026-12-20"],
+      ["task", "migrated", "renew passport", "2026-11-12"],
+      ["event", undefined, "dentist at 3pm", "2026-12-12"],
+      ["note", undefined, "check out the zine fair in spring", undefined],
+    ]);
+
+    const [daily, entry, copy] = blockAfter("### Scheduling and coming back", "markdown")
+      .trimEnd()
+      .split("\n")
+      .map((l) => parseBulletLine(l.replace(/^[^:]+:\s+/, "")));
+    const documented = parsed.entries.find((e) => e.blockId === "m4n5p6");
+    expect(documented).toMatchObject({ text: entry?.text, origin: entry?.origin });
+    // The entry links to the daily task's block id, and the daily copy links back to the
+    // entry's, in the future form that has no year.
+    expect(entry?.origin).toEqual({ date: "2026-11-09", blockId: daily?.blockId });
+    expect(copy?.origin).toEqual({ blockId: entry?.blockId });
+  });
+
+  it("has a future log input example that passes validation", () => {
+    expect(parseFutureAdd(blockAfter("### Adding to the future log", "json"))).toHaveLength(3);
   });
 });
