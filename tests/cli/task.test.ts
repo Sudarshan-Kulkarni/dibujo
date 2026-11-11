@@ -73,7 +73,7 @@ describe("dibujo task", () => {
       data: {
         status: "updated",
         scheduled: "2026-12-01",
-        future: { action: "added", status: "created", year: "2026" },
+        future: { action: "added", status: "created", path: join(w.vault, "Bujo", "Future.md") },
       },
     });
     expect((await w.run("task", "migrate", ref("call the bank"))).json).toMatchObject({
@@ -142,13 +142,13 @@ describe("dibujo task", () => {
     expect(String(migrate.json.data.targetContent)).toContain("from 2026-11-09]]");
     expect(w.read("2026-11-09")).toBe(before);
     expect(() => w.read("2026-11-10")).toThrow();
-    expect(existsSync(join(w.vault, "Bujo", "Future", "2026.md"))).toBe(false);
+    expect(existsSync(join(w.vault, "Bujo", "Future.md"))).toBe(false);
   });
 
   it.each<[string, string[], string, number]>([
     ["a malformed ref", ["task", "set", "nope", "completed"], "INVALID_REF", 2],
     ["an unknown state", ["task", "set", "2026-11-09:7:00000000", "done"], "USAGE", 2],
-    ["a missing argument", ["task", "schedule", "2026-11-09:7:00000000"], "USAGE", 2],
+    ["a missing argument", ["task", "schedule"], "USAGE", 2],
     ["a ref to a missing note", ["task", "migrate", "2026-11-01:7:00000000"], "TASK_NOT_FOUND", 1],
     ["a bad date", ["task", "review", "--date", "2026-02-30"], "INVALID_DATE", 2],
   ])("reports %s as JSON", async (_name, args, code, exit) => {

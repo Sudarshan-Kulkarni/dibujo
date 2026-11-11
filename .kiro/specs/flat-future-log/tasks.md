@@ -43,10 +43,10 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `tests/bujo/future-import.test.ts` (new): copies open tasks, events, and notes and skips other states; flattens a two-step chain to its daily origin; keeps the link when the chain is broken; drops a colliding block id; finds entries under a `## December` heading; running the plan again against its own output adds nothing, even when an imported entry has since been brought in.
   - _Requirements: 1.3 to 1.8, 2.1 to 2.7, 4.2 to 4.5, 7.1 to 7.4, 9.7, 9.8_
 
-- [ ] 2. Vault layer
+- [x] 2. Vault layer
   - _Depends on: 1_
-  - [ ] 2.1 `src/vault/paths.ts`: `futureNotePath(config)` returns `Future.md` in the dibujo folder. Add `legacyFutureNotePaths(config)`, which lists `Future/YYYY.md`, oldest year first, and gives an empty list when the folder is missing.
-  - [ ] 2.2 `src/vault/future.ts`: rewrite it as in "Vault operations" in the design. Keep the code of the current `migrateEntry` and `cancelEntry` where it still applies.
+  - [x] 2.1 `src/vault/paths.ts`: `futureNotePath(config)` returns `Future.md` in the dibujo folder. Add `legacyFutureNotePaths(config)`, which lists `Future/YYYY.md`, oldest year first, and gives an empty list when the folder is missing.
+  - [x] 2.2 `src/vault/future.ts`: rewrite it as in "Vault operations" in the design. Keep the code of the current `migrateEntry` and `cancelEntry` where it still applies.
     - `loadFutureNote`, `resolveEntry` (by line and fingerprint, then by a unique fingerprint, else `TASK_NOT_FOUND`; `NOT_A_TASK` for events and notes), `showFuture`, and `dueFor`, which returns `entries`, `events`, `waiting`, and `legacyNotes`. `scheduledFrom` is the origin date of an entry with a daily origin, and `null` otherwise.
     - `addEntries` (loads or starts the note, runs `planAdd`, appends, writes; the result lists the entries added with their refs, and the number skipped).
     - `migrateEntry`: the entry becomes `[>]` with a block id, written first, and the daily copy has the future origin `{ blockId }`. A copy that already exists is found by that origin, so a rerun adds nothing.
@@ -54,7 +54,7 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `cancelEntry`: as today, without the year.
     - `importOldNotes` and `legacyNotesToImport`, using `planImport`. An unsupported old note stops `importOldNotes` with `NOTE_VERSION_UNSUPPORTED`, and is ignored by `legacyNotesToImport`.
     - Delete everything else in the file that is year-based.
-  - [ ] 2.3 Tests in `tests/vault/future.test.ts` (rewrite, and use the `vault()` and `ids()` helpers):
+  - [x] 2.3 Tests in `tests/vault/future.test.ts` (rewrite, and use the `vault()` and `ids()` helpers):
     - `addEntries` creates the note, appends in order, and a second identical run adds nothing.
     - `dueFor` returns the due entries, the events dated today, and the other waiting tasks, and leaves out brought-in and cancelled entries.
     - `migrateEntry` adds a daily copy with a link back, and a rerun after an interruption (use the write hook) adds no second copy.
@@ -62,42 +62,42 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `importOldNotes` against a temporary vault with two old year notes: copies what it should, leaves the old notes byte for byte the same, and a second run adds nothing.
   - _Requirements: 1.9, 4.1 to 4.8, 5.1 to 5.9, 6.1 to 6.10, 9.7, 9.8_
 
-- [ ] 3. Scheduling
+- [x] 3. Scheduling
   - _Depends on: 2_
-  - [ ] 3.1 `src/vault/tasks.ts`: change `scheduleTask(config, ref, date?, options)` as in "scheduleTask" in the design. Look the entry up by the daily task's origin, and follow the table: add, change the date in place, or leave the future log alone. The result's `future` field loses `year`. Drop the chain-walking and month imports. A future origin must still end a migration streak in `migrationStreak`.
-  - [ ] 3.2 Tests: rewrite the future log tests in `tests/vault/tasks.test.ts` (the `describe` block about scheduling and the future log). Cover one case for each row of the table, a schedule with no date, scheduling again with a different date (both dates change and there is still one entry), and an interrupted run finished by running the same command again. Leave the other tests in the file alone.
+  - [x] 3.1 `src/vault/tasks.ts`: change `scheduleTask(config, ref, date?, options)` as in "scheduleTask" in the design. Look the entry up by the daily task's origin, and follow the table: add, change the date in place, or leave the future log alone. The result's `future` field loses `year`. Drop the chain-walking and month imports. A future origin must still end a migration streak in `migrationStreak`.
+  - [x] 3.2 Tests: rewrite the future log tests in `tests/vault/tasks.test.ts` (the `describe` block about scheduling and the future log). Cover one case for each row of the table, a schedule with no date, scheduling again with a different date (both dates change and there is still one entry), and an interrupted run finished by running the same command again. Leave the other tests in the file alone.
   - _Requirements: 3.1 to 3.10_
 
-- [ ] 4. CLI
+- [x] 4. CLI
   - _Depends on: 3_
-  - [ ] 4.1 New commands in `src/cli/`, registered in `registers.ts`:
+  - [x] 4.1 New commands in `src/cli/`, registered in `registers.ts`:
     - `future-add.ts`: JSON on stdin like `log-add.ts`, including the `USAGE` error when stdin is a terminal. Options `--dry-run` and `--json`.
     - `future-import.ts`: `--dry-run` and `--json`. Plain output says how many entries were copied from which notes and lists any unreadable lines.
-  - [ ] 4.2 Update the existing commands to the new results (see "JSON changes" in the design): `future-show.ts` (no year argument), `future-due.ts` (print the events and the other waiting tasks, and a line about `legacyNotes` when there are any), `future-migrate.ts`, `future-reschedule.ts` (the date is in place and the result is `{ ref, path, scheduled, status }`), `future-cancel.ts`, and `task-schedule.ts` (`<date>` becomes optional). Update the help text of each to match.
-  - [ ] 4.3 Delete the tests of the old design in `tests/cli/` and `tests/docs/` that no longer apply, and rewrite `tests/cli/future.test.ts` as one run through: `future add`, `task schedule` with and without a date, `future due`, `future migrate`, `future reschedule`, `future cancel`, and `future import`, with `--json` and a fake context. Fix `tests/cli/task.test.ts` for the new `task schedule` result.
-  - [ ] 4.4 `npm run format`, `npm run check`, and `npm test` pass in full.
+  - [x] 4.2 Update the existing commands to the new results (see "JSON changes" in the design): `future-show.ts` (no year argument), `future-due.ts` (print the events and the other waiting tasks, and a line about `legacyNotes` when there are any), `future-migrate.ts`, `future-reschedule.ts` (the date is in place and the result is `{ ref, path, scheduled, status }`), `future-cancel.ts`, and `task-schedule.ts` (`<date>` becomes optional). Update the help text of each to match.
+  - [x] 4.3 Delete the tests of the old design in `tests/cli/` and `tests/docs/` that no longer apply, and rewrite `tests/cli/future.test.ts` as one run through: `future add`, `task schedule` with and without a date, `future due`, `future migrate`, `future reschedule`, `future cancel`, and `future import`, with `--json` and a fake context. Fix `tests/cli/task.test.ts` for the new `task schedule` result.
+  - [x] 4.4 `npm run format`, `npm run check`, and `npm test` pass in full.
   - _Requirements: 2.2, 3.1, 4.1, 5.1, 5.3, 5.5, 6.1 to 6.3, 9.7_
 
-- [ ] 5. Vault format document
+- [x] 5. Vault format document
   - _Depends on: 4_
-  - [ ] 5.1 Update `docs/vault-format.md` as listed in "Format document" in the design. Keep the examples consistent with the CLI: they are parsed by `tests/docs/vault-format.test.ts`.
-  - [ ] 5.2 Update `tests/docs/vault-format.test.ts` for the new examples: the future log example parses with the flat parser, and its links agree. Remove the checks for months.
+  - [x] 5.1 Update `docs/vault-format.md` as listed in "Format document" in the design. Keep the examples consistent with the CLI: they are parsed by `tests/docs/vault-format.test.ts`.
+  - [x] 5.2 Update `tests/docs/vault-format.test.ts` for the new examples: the future log example parses with the flat parser, and its links agree. Remove the checks for months.
   - _Requirements: 10.1 to 10.3_
 
-- [ ] 6. Skills
+- [x] 6. Skills
   - _Depends on: 5_
-  - [ ] 6.1 Create `skills/future-log/SKILL.md` as in "future-log (new)" in the design. Frontmatter has only `name` and `description`. Link to `references/vault-format.md`. Every command uses the installed `dibujo ... --json`, with the same `npx -y digi-bujo` fallback as the other skills. Use a quoted heredoc for the JSON on stdin.
-  - [ ] 6.2 Update `skills/morning-planning/SKILL.md` as in "morning-planning" in the design: the new step order, the optional date when scheduling, today's events, the "look at your future log" step, priority for picked tasks, and the new `future reschedule` result fields. Keep the rest of the skill as it is.
-  - [ ] 6.3 Update `skills/daily-log/SKILL.md` and `skills/morning-planning/SKILL.md` with the rule that the future log is changed only through `dibujo` commands and that requests to add to it use the `future-log` skill.
-  - [ ] 6.4 In `README.md`, add one line to "Set up" about the future log (`dibujo future import` if you used the earlier version). Don't add anything else.
+  - [x] 6.1 Create `skills/future-log/SKILL.md` as in "future-log (new)" in the design. Frontmatter has only `name` and `description`. Link to `references/vault-format.md`. Every command uses the installed `dibujo ... --json`, with the same `npx -y digi-bujo` fallback as the other skills. Use a quoted heredoc for the JSON on stdin.
+  - [x] 6.2 Update `skills/morning-planning/SKILL.md` as in "morning-planning" in the design: the new step order, the optional date when scheduling, today's events, the "look at your future log" step, priority for picked tasks, and the new `future reschedule` result fields. Keep the rest of the skill as it is.
+  - [x] 6.3 Update `skills/daily-log/SKILL.md` and `skills/morning-planning/SKILL.md` with the rule that the future log is changed only through `dibujo` commands and that requests to add to it use the `future-log` skill.
+  - [x] 6.4 In `README.md`, add one line to "Set up" about the future log (`dibujo future import` if you used the earlier version). Don't add anything else.
   - _Requirements: 8.1 to 8.11, 9.1 to 9.6, 9.9, 10.5_
 
-- [ ] 7. Wrap-up
+- [x] 7. Wrap-up
   - _Depends on: 6_
-  - [ ] 7.1 `npm run format`, `npm run check`, `npm test`, and `npm run build` pass. `npm pack --dry-run` lists `skills/future-log/SKILL.md`.
-  - [ ] 7.2 Run the CLI from `dist/` against a **scratch vault in a temporary directory** (never a real vault). Put an old-style `Future/2026.md` in it, with month headings and a rescheduled chain, and a hand-written `## December` section. Then: `future show` (check `legacyNotes`), `future import --dry-run`, `future import`, `future import` again (nothing added), `future add` with a dated event, an undated task, and a note, `task schedule` with and without a date, `future due --date <later day>`, `future migrate`, `future reschedule`, `future cancel`. Note in the pull request anything that behaved differently from the design.
-  - [ ] 7.3 Remove the scratch vault and any temporary files.
-  - [ ] 7.4 In the pull request description, list the `--json` changes from the design, and say that `dibujo skills install` must be run after updating.
+  - [x] 7.1 `npm run format`, `npm run check`, `npm test`, and `npm run build` pass. `npm pack --dry-run` lists `skills/future-log/SKILL.md`.
+  - [x] 7.2 Run the CLI from `dist/` against a **scratch vault in a temporary directory** (never a real vault). Put an old-style `Future/2026.md` in it, with month headings and a rescheduled chain, and a hand-written `## December` section. Then: `future show` (check `legacyNotes`), `future import --dry-run`, `future import`, `future import` again (nothing added), `future add` with a dated event, an undated task, and a note, `task schedule` with and without a date, `future due --date <later day>`, `future migrate`, `future reschedule`, `future cancel`. Note in the pull request anything that behaved differently from the design.
+  - [x] 7.3 Remove the scratch vault and any temporary files.
+  - [x] 7.4 In the pull request description, list the `--json` changes from the design, and say that `dibujo skills install` must be run after updating.
 
 ---
 

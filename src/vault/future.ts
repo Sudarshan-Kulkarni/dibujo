@@ -1,16 +1,18 @@
-import { readdirSync } from "node:fs";
+import { basename } from "node:path";
 import { fingerprint, formatBullet } from "../bujo/bullet.js";
-import { addBlockId, applyLineEdits, setCheckbox } from "../bujo/edit.js";
+import { addBlockId, applyLineEdits, setCheckbox, setScheduled } from "../bujo/edit.js";
 import {
   appendFutureEntries,
   dueEntries,
+  eventsOn,
   type FutureBullet,
-  type LocatedEntry,
-  monthOf,
   newFutureTemplate,
+  otherWaiting,
   type ParsedFutureNote,
   parseFutureNote,
 } from "../bujo/future.js";
+import { type OldNote, planImport } from "../bujo/future-import.js";
+import { type FutureEntryInput, planAdd } from "../bujo/future-input.js";
 import { daysBetween, journalDate, parseDateArg } from "../bujo/journal-date.js";
 import {
   appendLogLines,
@@ -22,10 +24,15 @@ import {
 import { formatFutureRef, parseFutureRef } from "../bujo/ref.js";
 import type { Bullet, Origin, Signifier, TaskState } from "../bujo/types.js";
 import type { VaultConfig } from "../config.js";
-import { DibujoError } from "../errors.js";
+import { DibujoError, isDibujoError } from "../errors.js";
 import { freshBlockId, randomBlockId, usedBlockIds } from "./block-id.js";
 import { assertSupported, readIfExists } from "./daily.js";
-import { assertLinkSafeFolder, dailyNotePath, futureNotePath, resolveInVault } from "./paths.js";
+import {
+  assertLinkSafeFolder,
+  dailyNotePath,
+  futureNotePath,
+  legacyFutureNotePaths,
+} from "./paths.js";
 import {
   type CommitOptions,
   commitWrites,
@@ -34,70 +41,34 @@ import {
   writeStatus,
 } from "./write-plan.js";
 
-/** A future log note read from disk. */
+/** The future log note read from disk. */
 export interface LoadedFutureNote {
-  year: string;
   path: string;
   /** The note's full content, as read. Writes compare against it. */
   content: string;
   parsed: ParsedFutureNote;
 }
 
-export interface LoadOptions {
-  /** Skip notes for years after this one. */
-  throughYear?: string;
-}
-
-const FUTURE_FILE = /^(\d{4})\.md$/;
-
 /**
- * Reads every `Future/YYYY.md` note, oldest year first, and checks each one's format
- * version. A missing folder gives an empty list. A note with an unsupported version
- * throws, naming the note, instead of being skipped: a skipped note would hide
- * entries that are meant to keep coming back.
+ * Reads `Future.md` and checks its format version. `null` when the note doesn't
+ * exist, which commands that only read treat as an empty future log.
  */
-export function loadFutureNotes(
-  config: VaultConfig,
-  options: LoadOptions = {},
-): LoadedFutureNote[] {
-  const folder = resolveInVault(config, "Future");
-  let names: string[];
-  try {
-    names = readdirSync(folder);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-
-  const notes: LoadedFutureNote[] = [];
-  const years = names
-    .flatMap((name) => FUTURE_FILE.exec(name)?.[1] ?? [])
-    .filter((year) => options.throughYear === undefined || year <= options.throughYear)
-    .sort();
-  for (const year of years) {
-    const note = loadFutureNote(config, year);
-    if (note) notes.push(note);
-  }
-  return notes;
-}
-
-/** Reads one year's note and checks its format version. `null` when it doesn't exist. */
-export function loadFutureNote(config: VaultConfig, year: string): LoadedFutureNote | null {
-  const path = futureNotePath(config, year);
+export function loadFutureNote(config: VaultConfig): LoadedFutureNote | null {
+  const path = futureNotePath(config);
   const content = readIfExists(path);
   if (content === null) return null;
   const parsed = parseFutureNote(content);
   assertSupported(parsed, path);
-  return { year, path, content, parsed };
+  return { path, content, parsed };
 }
 
-/** Every entry in the loaded notes, with the year of its note, in note order. */
-export function locateEntries(notes: readonly LoadedFutureNote[]): LocatedEntry[] {
-  return notes.flatMap((note) => note.parsed.entries.map((e) => ({ ...e, year: note.year })));
+function refOf(entry: FutureBullet): string {
+  return formatFutureRef(entry.line, fingerprint(entry));
 }
 
-export function entryRef(entry: LocatedEntry): string {
-  return formatFutureRef(entry.year, entry.line, fingerprint(entry));
+/** The date on an entry: `⏳` on a task, `📅` on an event. */
+function dateOf(entry: Bullet): string | undefined {
+  return entry.type === "task" ? entry.scheduled : entry.eventDate;
 }
 
 export interface FutureEntryView {
@@ -108,42 +79,23 @@ export interface FutureEntryView {
   text: string;
   signifiers: Signifier[];
   depth: number;
-  scheduled?: string;
+  date?: string;
   origin?: Origin;
 }
 
-export interface FutureNoteView {
+export interface FutureShowView {
   exists: boolean;
   path: string;
-  year: string;
-  /** The months that have entries, in calendar order. */
-  months: { month: string; entries: FutureEntryView[] }[];
+  /** Every entry, in the order they are in the note. */
+  entries: FutureEntryView[];
   unrecognized: UnrecognizedLine[];
+  /** Old year notes that `dibujo future import` would still copy something from. */
+  legacyNotes: string[];
 }
 
-/** Reads one year's note for `future show`. */
-export function readFutureNote(config: VaultConfig, year: string): FutureNoteView {
-  const path = futureNotePath(config, year);
-  const content = readIfExists(path);
-  if (content === null) return { exists: false, path, year, months: [], unrecognized: [] };
-  const parsed = parseFutureNote(content);
-  assertSupported(parsed, path);
-
-  const byMonth = new Map<string, FutureEntryView[]>();
-  for (const entry of parsed.entries) {
-    const list = byMonth.get(entry.month) ?? [];
-    list.push(viewOf(entry, year));
-    byMonth.set(entry.month, list);
-  }
-  const months = [...byMonth.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, entries]) => ({ month, entries }));
-  return { exists: true, path, year, months, unrecognized: parsed.unrecognized };
-}
-
-function viewOf(entry: FutureBullet, year: string): FutureEntryView {
+function viewOf(entry: FutureBullet): FutureEntryView {
   const view: FutureEntryView = {
-    ref: formatFutureRef(year, entry.line, fingerprint(entry)),
+    ref: refOf(entry),
     line: entry.line,
     type: entry.type,
     text: entry.text,
@@ -151,9 +103,32 @@ function viewOf(entry: FutureBullet, year: string): FutureEntryView {
     depth: entry.depth,
   };
   if (entry.state) view.state = entry.state;
-  if (entry.scheduled) view.scheduled = entry.scheduled;
+  const date = dateOf(entry);
+  if (date) view.date = date;
   if (entry.origin) view.origin = entry.origin;
   return view;
+}
+
+/** Reads the future log for `future show`. */
+export function showFuture(config: VaultConfig): FutureShowView {
+  const note = loadFutureNote(config);
+  const legacyNotes = legacyNotesToImport(config);
+  if (!note) {
+    return {
+      exists: false,
+      path: futureNotePath(config),
+      entries: [],
+      unrecognized: [],
+      legacyNotes,
+    };
+  }
+  return {
+    exists: true,
+    path: note.path,
+    entries: note.parsed.entries.map(viewOf),
+    unrecognized: note.parsed.unrecognized,
+    legacyNotes,
+  };
 }
 
 export interface DueEntry {
@@ -163,64 +138,71 @@ export interface DueEntry {
   scheduled: string;
   /** Calendar days from the entry's date to today. 0 on the day itself. */
   daysOverdue: number;
-  /** The date of the daily note the entry started from, or `null` when the chain can't be followed. */
+  /** The date of the daily note the entry was scheduled from, or `null` when that isn't known. */
   scheduledFrom: string | null;
   path: string;
 }
 
+export interface TodayEvent {
+  text: string;
+  signifiers: Signifier[];
+  date: string;
+}
+
+export interface WaitingTask {
+  ref: string;
+  text: string;
+  signifiers: Signifier[];
+  date?: string;
+}
+
 export interface DueResult {
   today: string;
+  /** Waiting tasks dated today or earlier, by date and then note order. */
   entries: DueEntry[];
+  /** Events dated today, for information. */
+  events: TodayEvent[];
+  /** The other waiting tasks (undated, or dated after today), in note order. */
+  waiting: WaitingTask[];
+  legacyNotes: string[];
 }
 
 /**
- * Lists the due entries in the notes for today's year and every earlier year. A
- * waiting entry stays waiting until it is handled, so it is listed again each day.
+ * Lists what `future due` reports for `today`. A waiting entry stays waiting until
+ * it is handled, so a due entry is listed again each day.
  */
-export function dueEntriesFor(config: VaultConfig, today: string): DueResult {
-  const notes = loadFutureNotes(config, { throughYear: today.slice(0, 4) });
-  const located = locateEntries(notes);
-  const pathOf = new Map(notes.map((n) => [n.year, n.path]));
+export function dueFor(config: VaultConfig, today: string): DueResult {
+  const note = loadFutureNote(config);
+  const path = futureNotePath(config);
+  const all = note?.parsed.entries ?? [];
 
-  const entries = dueEntries(located, today).map((e): DueEntry => {
+  const entries = dueEntries(all, today).map((e): DueEntry => {
     const scheduled = e.scheduled ?? today;
     return {
-      ref: entryRef(e),
+      ref: refOf(e),
       text: e.text,
       signifiers: e.signifiers,
       scheduled,
       daysOverdue: Math.max(0, daysBetween(scheduled, today)),
-      scheduledFrom: scheduledFrom(located, e),
-      path: pathOf.get(e.year) ?? futureNotePath(config, e.year),
+      scheduledFrom: e.origin && "date" in e.origin ? e.origin.date : null,
+      path,
     };
   });
-  return { today, entries };
-}
-
-/**
- * Follows future origins across the notes until a daily origin gives the date of the
- * daily note the task started in. Returns `null` when the chain breaks or loops.
- */
-function scheduledFrom(entries: readonly LocatedEntry[], start: LocatedEntry): string | null {
-  const visited = new Set<string>();
-  let current: LocatedEntry = start;
-  for (;;) {
-    const origin = current.origin;
-    if (!origin) return null;
-    if ("date" in origin) return origin.date;
-    const key = `${origin.year}:${origin.blockId}`;
-    if (visited.has(key)) return null;
-    visited.add(key);
-    const next = entries.find((e) => e.year === origin.year && e.blockId === origin.blockId);
-    if (!next) return null;
-    current = next;
-  }
+  const events = eventsOn(all, today).map(
+    (e): TodayEvent => ({ text: e.text, signifiers: e.signifiers, date: today }),
+  );
+  const waiting = otherWaiting(all, today).map((e): WaitingTask => {
+    const task: WaitingTask = { ref: refOf(e), text: e.text, signifiers: e.signifiers };
+    if (e.scheduled) task.date = e.scheduled;
+    return task;
+  });
+  return { today, entries, events, waiting, legacyNotes: legacyNotesToImport(config) };
 }
 
 /** An entry found on disk from a ref. */
 export interface ResolvedEntry {
   note: LoadedFutureNote;
-  entry: LocatedEntry;
+  entry: FutureBullet;
   /** The entry's line exactly as it is in the file. */
   rawLine: string;
   /** The entry's current ref. The line number differs from the input if the line moved. */
@@ -228,14 +210,14 @@ export interface ResolvedEntry {
 }
 
 /**
- * Finds the entry a ref points to in the given notes. Uses the ref's line when its
- * fingerprint still matches; otherwise looks for the one entry in that year's note
- * with that fingerprint, so lines added or removed above it don't break the ref.
+ * Finds the task entry a ref points to. Uses the ref's line when its fingerprint
+ * still matches; otherwise looks for the one entry with that fingerprint, so lines
+ * added or removed above it don't break the ref. `note` is `null` when `Future.md`
+ * doesn't exist.
  */
-export function resolveEntry(notes: readonly LoadedFutureNote[], refValue: string): ResolvedEntry {
+export function resolveEntry(note: LoadedFutureNote | null, refValue: string): ResolvedEntry {
   const ref = parseFutureRef(refValue);
-  const note = notes.find((n) => n.year === ref.year);
-  if (!note) throw notFound(refValue, `There is no future log note for ${ref.year}.`);
+  if (!note) throw notFound(refValue, "There is no future log note yet.");
 
   const entries = note.parsed.entries;
   const matches = (e: FutureBullet) => fingerprint(e) === ref.fingerprint;
@@ -262,23 +244,80 @@ export function resolveEntry(notes: readonly LoadedFutureNote[], refValue: strin
   }
   return {
     note,
-    entry: { ...found, year: note.year },
+    entry: found,
     rawLine: splitLines(note.content).lines[found.line - 1] ?? "",
-    ref: formatFutureRef(note.year, found.line, ref.fingerprint),
+    ref: formatFutureRef(found.line, ref.fingerprint),
   };
-}
-
-/** Like `resolveEntry`, reading only the note for the ref's year. */
-export function resolveEntryRef(config: VaultConfig, refValue: string): ResolvedEntry {
-  const { year } = parseFutureRef(refValue);
-  const note = loadFutureNote(config, year);
-  return resolveEntry(note ? [note] : [], refValue);
 }
 
 export interface EntryOptions {
   dryRun?: boolean;
   /** Test hooks for the writes, in the order the notes are written. */
   hooks?: CommitOptions;
+}
+
+export interface AddEntriesOptions extends EntryOptions {
+  now: Date;
+}
+
+export interface AddedEntry {
+  ref: string;
+  type: Bullet["type"];
+  text: string;
+  signifiers: Signifier[];
+  date?: string;
+}
+
+export interface AddEntriesResult {
+  status: WriteStatus;
+  path: string;
+  /** The entries written, in input order. */
+  added: AddedEntry[];
+  /** The number of input entries left out because the note (or the input) already has them. */
+  skipped: number;
+  dryRun: boolean;
+  /** The full resulting note. Only set for dry runs. */
+  content?: string;
+}
+
+/**
+ * Appends entries to the future log, creating the note when it doesn't exist. Nothing
+ * is written if any entry is invalid, or if the note has an unsupported version.
+ */
+export function addEntries(
+  config: VaultConfig,
+  input: readonly FutureEntryInput[],
+  options: AddEntriesOptions,
+): AddEntriesResult {
+  const today = journalDate(options.now, config.dayStartHour);
+  const note = loadFutureNote(config);
+  const path = futureNotePath(config);
+  const base = note?.content ?? newFutureTemplate();
+  const existing = note?.parsed ?? parseFutureNote(base);
+
+  const plan = planAdd(existing.entries, input, today, config.folder);
+  const content = plan.lines.length > 0 ? appendFutureEntries(base, plan.lines) : base;
+
+  // The new lines go after everything else, so they are the last entries of the result.
+  const written = parseFutureNote(content).entries.slice(existing.entries.length);
+  const added = written.map((e): AddedEntry => {
+    const entry: AddedEntry = {
+      ref: refOf(e),
+      type: e.type,
+      text: e.text,
+      signifiers: e.signifiers,
+    };
+    const date = dateOf(e);
+    if (date) entry.date = date;
+    return entry;
+  });
+
+  const dryRun = options.dryRun === true;
+  const write: PlannedWrite = { path, original: note?.content ?? null, content };
+  let status: WriteStatus = plan.lines.length > 0 ? writeStatus(write) : "unchanged";
+  if (!dryRun && plan.lines.length > 0) status = commitWrites([write], options.hooks)[0] ?? status;
+  const result: AddEntriesResult = { status, path, added, skipped: plan.skipped, dryRun };
+  return dryRun ? { ...result, content } : result;
 }
 
 export interface MigrateEntryOptions extends EntryOptions {
@@ -292,7 +331,7 @@ export interface MigrateEntryOptions extends EntryOptions {
 
 export interface MigrateEntryResult {
   status: "migrated" | "unchanged";
-  source: { path: string; year: string; status: "updated" | "unchanged" };
+  source: { path: string; status: "updated" | "unchanged" };
   target: { path: string; date: string; status: WriteStatus };
   dryRun: boolean;
   sourceContent?: string;
@@ -310,7 +349,7 @@ export function migrateEntry(
   options: MigrateEntryOptions,
 ): MigrateEntryResult {
   assertLinkSafeFolder(config);
-  const { note, entry, rawLine } = resolveEntryRef(config, refValue);
+  const { note, entry, rawLine } = resolveEntry(loadFutureNote(config), refValue);
   const resuming = entry.state === "migrated" && entry.blockId !== undefined;
   if (entry.state !== "open" && !resuming) {
     throw new DibujoError(
@@ -348,8 +387,13 @@ export function migrateEntry(
       ? note.content
       : applyLineEdits(note.content, [{ line: entry.line, before: rawLine, after: sourceLine }]);
 
+  // Only a link to Future.md counts. An old-form link (with a year) points at an old year note.
   const alreadyCopied = targetParsed.bullets.some(
-    (b) => b.origin !== undefined && "year" in b.origin && matchesEntry(b.origin, note.year, id),
+    (b) =>
+      b.origin !== undefined &&
+      !("date" in b.origin) &&
+      b.origin.year === undefined &&
+      b.origin.blockId === id,
   );
   const signifiers = [...entry.signifiers];
   if (options.priority === true && !signifiers.includes("priority")) signifiers.push("priority");
@@ -360,7 +404,7 @@ export function migrateEntry(
       signifiers,
       text: entry.text,
       depth: 0,
-      origin: { year: note.year, blockId: id },
+      origin: { blockId: id },
     },
     { folder: config.folder },
   );
@@ -377,204 +421,77 @@ export function migrateEntry(
   const source = sourceStatus === "unchanged" ? "unchanged" : "updated";
   const result: MigrateEntryResult = {
     status: source === "unchanged" && targetStatus === "unchanged" ? "unchanged" : "migrated",
-    source: { path: note.path, year: note.year, status: source },
+    source: { path: note.path, status: source },
     target: { path: targetPath, date: to, status: targetStatus ?? "unchanged" },
     dryRun,
   };
   return dryRun ? { ...result, sourceContent, targetContent } : result;
 }
 
-export interface RescheduleEntryOptions extends EntryOptions {
-  now: Date;
-  /** Block id generator. Random by default. */
-  newId?: () => string;
-}
-
-/** What `planReschedule` decided: the writes to make, and where the entry is moving. */
-export interface ReschedulePlan {
-  status: "rescheduled" | "unchanged";
-  /** In write order. Both changes are one write when the dates are in the same year. */
-  writes: PlannedWrite[];
-  from: { path: string; year: string };
-  /** Where the new entry is or will be. For an existing copy, the copy's own date. */
-  to: { path: string; year: string; date: string };
-}
-
-/**
- * Plans moving an entry to a later date: the old entry becomes `[<]` with a block id,
- * and a new waiting entry linking to it goes in the month of the new date.
- *
- * The entry must be waiting, or `[<]` with a block id and no copy (an interrupted run).
- * A `[<]` entry that already has a copy is left alone and reported as unchanged. The
- * caller checks the date. `entry` and `notes` must come from the same `loadFutureNotes`
- * call, and all of the notes are needed to find an existing copy.
- */
-export function planReschedule(
-  config: VaultConfig,
-  notes: readonly LoadedFutureNote[],
-  entry: LocatedEntry,
-  date: string,
-  newId: () => string = randomBlockId,
-): ReschedulePlan {
-  const note = notes.find((n) => n.year === entry.year);
-  if (!note) throw new Error(`planReschedule: no loaded note for ${entry.year}`);
-  const resuming = entry.state === "scheduled" && entry.blockId !== undefined;
-  if (entry.state !== "open" && !resuming) {
-    throw new DibujoError(
-      "TASK_NOT_OPEN",
-      `The entry is ${entry.state ?? "open"}, so it can't be rescheduled.`,
-      "Only waiting entries can be rescheduled.",
-    );
-  }
-  const from = { path: note.path, year: note.year };
-
-  if (resuming) {
-    const copy = locateEntries(notes).find(
-      (e) =>
-        e.origin !== undefined &&
-        "year" in e.origin &&
-        matchesEntry(e.origin, note.year, entry.blockId),
-    );
-    if (copy) {
-      return {
-        status: "unchanged",
-        writes: [{ path: note.path, original: note.content, content: note.content }],
-        from,
-        to: {
-          path: pathFor(config, notes, copy.year),
-          year: copy.year,
-          date: copy.scheduled ?? date,
-        },
-      };
-    }
-  }
-
-  const id = entry.blockId ?? freshBlockId(usedBlockIds(note.content), newId);
-  const rawLine = splitLines(note.content).lines[entry.line - 1] ?? "";
-  const oldLine = addBlockId(
-    entry.state === "open" ? setCheckbox(rawLine, "scheduled") : rawLine,
-    id,
-  );
-  const oldContent =
-    oldLine === rawLine
-      ? note.content
-      : applyLineEdits(note.content, [{ line: entry.line, before: rawLine, after: oldLine }]);
-
-  const newYear = date.slice(0, 4);
-  const line = formatBullet(
-    {
-      type: "task",
-      state: "open",
-      signifiers: [...entry.signifiers],
-      text: entry.text,
-      depth: 0,
-      origin: { year: note.year, blockId: id },
-      scheduled: date,
-    },
-    { folder: config.folder },
-  );
-  const to = { path: pathFor(config, notes, newYear), year: newYear, date };
-
-  if (newYear === note.year) {
-    const edited = notes.map((n) => (n === note ? { ...n, content: oldContent } : n));
-    const append = planAppend(config, edited, newYear, monthOf(date), [line]);
-    return {
-      status: "rescheduled",
-      writes: [{ ...append, original: note.content }],
-      from,
-      to,
-    };
-  }
-  return {
-    status: "rescheduled",
-    writes: [
-      { path: note.path, original: note.content, content: oldContent },
-      planAppend(config, notes, newYear, monthOf(date), [line]),
-    ],
-    from,
-    to,
-  };
-}
-
-/**
- * The write that adds lines to a month of a year's note: to the loaded note, or to a
- * new note from the template when that year has none yet.
- */
-export function planAppend(
-  config: VaultConfig,
-  notes: readonly LoadedFutureNote[],
-  year: string,
-  month: string,
-  lines: readonly string[],
-): PlannedWrite {
-  const existing = notes.find((n) => n.year === year);
-  const base = existing?.content ?? newFutureTemplate(year);
-  return {
-    path: existing?.path ?? futureNotePath(config, year),
-    original: existing?.content ?? null,
-    content: appendFutureEntries(base, month, lines),
-  };
-}
-
 export interface RescheduleEntryResult {
   status: "rescheduled" | "unchanged";
-  from: { path: string; year: string; status: "updated" | "unchanged" };
-  to: { path: string; year: string; date: string; status: WriteStatus };
+  ref: string;
+  path: string;
+  scheduled: string;
   dryRun: boolean;
-  fromContent?: string;
-  toContent?: string;
+  /** The full resulting note. Only set for dry runs. */
+  content?: string;
 }
 
 /**
- * Moves a waiting entry to a later date. In the same year it is one write. Across
- * years the old note is written first, so running the same command again after an
- * interruption adds the new entry exactly once.
+ * Sets or changes the `⏳` date of a waiting task entry, in place. The entry keeps its
+ * state and its line, and no second entry is added. The same date is `unchanged`.
  */
 export function rescheduleEntry(
   config: VaultConfig,
   refValue: string,
   dateValue: string,
-  options: RescheduleEntryOptions,
+  options: EntryOptions & { now: Date },
 ): RescheduleEntryResult {
-  assertLinkSafeFolder(config);
   const date = parseDateArg(dateValue);
   const today = journalDate(options.now, config.dayStartHour);
   if (date <= today) {
     throw new DibujoError(
       "INVALID_DATE",
-      `An entry can only be rescheduled to a day after today (${today}), not ${date}.`,
+      `An entry can only be given a date after today (${today}), not ${date}.`,
       "Pick a later date.",
     );
   }
 
-  const notes = loadFutureNotes(config);
-  const { entry } = resolveEntry(notes, refValue);
-  const plan = planReschedule(config, notes, entry, date, options.newId);
+  const { note, entry, rawLine, ref } = resolveEntry(loadFutureNote(config), refValue);
+  if (entry.state !== "open") {
+    throw new DibujoError(
+      "TASK_NOT_OPEN",
+      `The entry is ${entry.state ?? "open"}, so its date can't be changed.`,
+      "Only waiting entries can be given a date.",
+    );
+  }
+
+  const after = setScheduled(rawLine, date);
+  const content =
+    after === rawLine
+      ? note.content
+      : applyLineEdits(note.content, [{ line: entry.line, before: rawLine, after }]);
+  const write: PlannedWrite = { path: note.path, original: note.content, content };
 
   const dryRun = options.dryRun === true;
-  const statuses = dryRun ? plan.writes.map(writeStatus) : commitWrites(plan.writes, options.hooks);
-  const first = plan.writes[0];
-  const last = plan.writes[plan.writes.length - 1];
-  const fromStatus = statuses[0] === "unchanged" ? "unchanged" : "updated";
+  const status = dryRun
+    ? writeStatus(write)
+    : (commitWrites([write], options.hooks)[0] ?? "unchanged");
   const result: RescheduleEntryResult = {
-    status:
-      plan.status === "unchanged" || statuses.every((s) => s === "unchanged")
-        ? "unchanged"
-        : "rescheduled",
-    from: { ...plan.from, status: fromStatus },
-    to: { ...plan.to, status: statuses[statuses.length - 1] ?? "unchanged" },
+    status: status === "unchanged" ? "unchanged" : "rescheduled",
+    ref,
+    path: note.path,
+    scheduled: date,
     dryRun,
   };
-  return dryRun && first && last
-    ? { ...result, fromContent: first.content, toContent: last.content }
-    : result;
+  return dryRun ? { ...result, content } : result;
 }
 
 export interface CancelEntryResult {
   status: "updated" | "unchanged";
   ref: string;
   path: string;
-  year: string;
   state: "cancelled";
   dryRun: boolean;
   /** The full resulting note. Only set for dry runs. */
@@ -587,7 +504,7 @@ export function cancelEntry(
   refValue: string,
   options: EntryOptions = {},
 ): CancelEntryResult {
-  const { note, entry, rawLine, ref } = resolveEntryRef(config, refValue);
+  const { note, entry, rawLine, ref } = resolveEntry(loadFutureNote(config), refValue);
   if (entry.state !== "open" && entry.state !== "cancelled") {
     throw new DibujoError(
       "TASK_NOT_OPEN",
@@ -610,19 +527,87 @@ export function cancelEntry(
     status: status === "unchanged" ? "unchanged" : "updated",
     ref,
     path: note.path,
-    year: note.year,
     state: "cancelled",
     dryRun,
   };
   return dryRun ? { ...result, content } : result;
 }
 
-function matchesEntry(origin: Origin, year: string, blockId: string | undefined): boolean {
-  return "year" in origin && origin.year === year && origin.blockId === blockId;
+export interface ImportResult {
+  status: WriteStatus;
+  /** The future log, `Future.md`. */
+  path: string;
+  /** The number of entries copied into it. */
+  copied: number;
+  /** How many entries came from each old note. Notes that add nothing are left out. */
+  sources: { path: string; count: number }[];
+  /** Lines in the old notes that were not copied because they can't be read as entries. */
+  unreadable: { path: string; line: number; text: string }[];
+  dryRun: boolean;
+  /** The full resulting note. Only set for dry runs. */
+  content?: string;
 }
 
-function pathFor(config: VaultConfig, notes: readonly LoadedFutureNote[], year: string): string {
-  return notes.find((n) => n.year === year)?.path ?? futureNotePath(config, year);
+/**
+ * Copies the entries of the old year notes (`Future/YYYY.md`) into `Future.md`. The old
+ * notes are only read. Running it again adds nothing that was already copied. An old
+ * note with an unsupported format version stops the import, naming the note.
+ */
+export function importOldNotes(config: VaultConfig, options: EntryOptions = {}): ImportResult {
+  assertLinkSafeFolder(config);
+  const old = readLegacyNotes(config, { strict: true });
+  const note = loadFutureNote(config);
+  const path = futureNotePath(config);
+  const base = note?.content ?? newFutureTemplate();
+  const current = note?.parsed ?? parseFutureNote(base);
+
+  const plan = planImport(old, current, { folder: config.folder });
+  const copied = plan.lines.length;
+  const content = copied > 0 ? appendFutureEntries(base, plan.lines) : base;
+
+  const dryRun = options.dryRun === true;
+  const write: PlannedWrite = { path, original: note?.content ?? null, content };
+  let status: WriteStatus = copied > 0 ? writeStatus(write) : "unchanged";
+  if (!dryRun && copied > 0) status = commitWrites([write], options.hooks)[0] ?? status;
+  const result: ImportResult = {
+    status,
+    path,
+    copied,
+    sources: plan.copied,
+    unreadable: plan.unreadable,
+    dryRun,
+  };
+  return dryRun ? { ...result, content } : result;
+}
+
+/**
+ * The old year notes that `importOldNotes` would still copy something from. Old notes
+ * that can't be read (an unsupported version) are ignored, so a bad old note never
+ * stops `show` or `due`.
+ */
+export function legacyNotesToImport(config: VaultConfig): string[] {
+  const old = readLegacyNotes(config, { strict: false });
+  if (old.length === 0) return [];
+  const note = loadFutureNote(config);
+  const current = note?.parsed ?? parseFutureNote(newFutureTemplate());
+  return planImport(old, current, { folder: config.folder }).copied.map((c) => c.path);
+}
+
+/** Reads the old year notes, oldest year first. */
+function readLegacyNotes(config: VaultConfig, options: { strict: boolean }): OldNote[] {
+  const notes: OldNote[] = [];
+  for (const path of legacyFutureNotePaths(config)) {
+    const content = readIfExists(path);
+    if (content === null) continue;
+    try {
+      assertSupported(parseFutureNote(content), path);
+    } catch (error) {
+      if (!options.strict && isDibujoError(error)) continue;
+      throw error;
+    }
+    notes.push({ year: basename(path, ".md"), path, content });
+  }
+  return notes;
 }
 
 function notFound(ref: string, message: string): DibujoError {

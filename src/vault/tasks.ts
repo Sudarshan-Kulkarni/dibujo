@@ -1,6 +1,6 @@
 import { fingerprint, formatBullet } from "../bujo/bullet.js";
 import { addBlockId, applyLineEdits, setCheckbox, setScheduled } from "../bujo/edit.js";
-import { findLive, monthOf } from "../bujo/future.js";
+import { appendFutureEntries, newFutureTemplate } from "../bujo/future.js";
 import { addDays, journalDate, parseDateArg } from "../bujo/journal-date.js";
 import { planMigration } from "../bujo/migrate.js";
 import {
@@ -18,8 +18,8 @@ import { DibujoError, isDibujoError } from "../errors.js";
 import { replaceIfUnchanged, type WriteHooks, writeNew } from "./atomic-write.js";
 import { freshBlockId, randomBlockId, usedBlockIds } from "./block-id.js";
 import { assertSupported, readIfExists } from "./daily.js";
-import { loadFutureNotes, locateEntries, planAppend, planReschedule } from "./future.js";
-import { assertLinkSafeFolder, dailyNotePath } from "./paths.js";
+import { loadFutureNote } from "./future.js";
+import { assertLinkSafeFolder, dailyNotePath, futureNotePath } from "./paths.js";
 import {
   type CommitOptions,
   commitWrites,
@@ -128,38 +128,41 @@ export interface ScheduleOptions {
 
 /** What `scheduleTask` did in the future log. */
 export interface ScheduleFutureInfo {
-  /** The note that now holds the waiting entry. */
+  /** The future log note, `Future.md`. */
   path: string;
-  year: string;
   /**
-   * `added`: a new waiting entry. `rescheduled`: the entry moved to the new date.
-   * `unchanged`: a waiting entry for this date was already there.
+   * `added`: a new waiting entry. `rescheduled`: the date of the waiting entry was
+   * changed in place. `unchanged`: the future log already had what it should.
    */
   action: "added" | "rescheduled" | "unchanged";
-  /** The status of the note that holds the waiting entry. */
+  /** The status of the future log note. */
   status: WriteStatus;
 }
 
 export interface ScheduleResult extends TaskEditResult {
   future: ScheduleFutureInfo;
-  /** The resulting future log note holding the waiting entry. Only set for dry runs. */
+  /** The resulting future log note. Only set for dry runs. */
   futureContent?: string;
 }
 
 /**
- * Marks a task scheduled (`[<]`), sets its `⏳` date and a block id, and writes a
- * waiting entry for the date into the future log. Works on open or scheduled tasks.
+ * Marks a task scheduled (`[<]`) with a block id and writes a waiting entry for it
+ * into the future log. Works on open or scheduled tasks. With a `date`, the task gets
+ * that `⏳` date and so does its entry. Without one, a task that has no date stays
+ * undated, and a task that has one keeps it.
  *
- * The daily note is written first and the future log second, so running the same
- * command again after an interruption adds the missing entry and nothing else.
+ * The entry is found by its link back to the daily task. A waiting entry gets its
+ * date changed in place, and an entry that was brought in or cancelled is left
+ * alone. The daily note is written first and the future log second, so running the
+ * same command again after an interruption adds the missing entry and nothing else.
  */
 export function scheduleTask(
   config: VaultConfig,
   ref: string,
-  date: string,
+  date: string | undefined,
   options: ScheduleOptions = {},
 ): ScheduleResult {
-  const on = parseDateArg(date);
+  const on = date === undefined ? undefined : parseDateArg(date);
   const task = resolveRef(config, ref);
   const state = task.bullet.state ?? "open";
   if (state !== "open" && state !== "scheduled") {
@@ -169,7 +172,7 @@ export function scheduleTask(
       "Only open or already scheduled tasks can be scheduled.",
     );
   }
-  if (on <= task.date) {
+  if (on !== undefined && on <= task.date) {
     throw new DibujoError(
       "INVALID_DATE",
       `A task in the note for ${task.date} can only be scheduled for a later date, not ${on}.`,
@@ -178,12 +181,14 @@ export function scheduleTask(
   }
   assertLinkSafeFolder(config);
 
-  // Read and check every future log note before writing anything.
-  const notes = loadFutureNotes(config);
-  const newId = options.newId ?? randomBlockId;
-  const id = task.bullet.blockId ?? freshBlockId(usedBlockIds(task.content), newId);
+  // Read and check the future log before writing anything.
+  const note = loadFutureNote(config);
+  const id =
+    task.bullet.blockId ?? freshBlockId(usedBlockIds(task.content), options.newId ?? randomBlockId);
 
-  const after = addBlockId(setScheduled(setCheckbox(task.rawLine, "scheduled"), on), id);
+  const scheduled = on ?? task.bullet.scheduled;
+  const marked = setCheckbox(task.rawLine, "scheduled");
+  const after = addBlockId(on === undefined ? marked : setScheduled(marked, on), id);
   const dailyContent =
     after === task.rawLine
       ? task.content
@@ -194,21 +199,22 @@ export function scheduleTask(
     content: dailyContent,
   };
 
-  const live = findLive(locateEntries(notes), { date: task.date, blockId: id });
-  let futureWrites: PlannedWrite[];
-  let action: ScheduleFutureInfo["action"];
-  let where: { path: string; year: string };
-  if (live?.kind === "waiting" && live.entry.scheduled === on) {
-    const note = notes.find((n) => n.year === live.entry.year);
-    futureWrites = note ? [{ path: note.path, original: note.content, content: note.content }] : [];
-    action = "unchanged";
-    where = { path: note?.path ?? "", year: live.entry.year };
-  } else if (live) {
-    const plan = planReschedule(config, notes, live.entry, on, newId);
-    futureWrites = plan.writes;
-    action = plan.status === "unchanged" ? "unchanged" : "rescheduled";
-    where = plan.to;
-  } else {
+  const entries = note?.parsed.entries ?? [];
+  const linked = entries.filter(
+    (e) =>
+      e.type === "task" &&
+      e.origin !== undefined &&
+      "date" in e.origin &&
+      e.origin.date === task.date &&
+      e.origin.blockId === id,
+  );
+  // If someone copied an entry, change the one that is still waiting.
+  const found = linked.find((e) => e.state === "open") ?? linked[0];
+
+  const path = futureNotePath(config);
+  let futureWrite: PlannedWrite | null = null;
+  let action: ScheduleFutureInfo["action"] = "unchanged";
+  if (!found) {
     const entry = formatBullet(
       {
         type: "task",
@@ -217,34 +223,49 @@ export function scheduleTask(
         text: task.bullet.text,
         depth: 0,
         origin: { date: task.date, blockId: id },
-        scheduled: on,
+        ...(scheduled === undefined ? {} : { scheduled }),
       },
       { folder: config.folder },
     );
-    const write = planAppend(config, notes, on.slice(0, 4), monthOf(on), [entry]);
-    futureWrites = [write];
+    futureWrite = {
+      path,
+      original: note?.content ?? null,
+      content: appendFutureEntries(note?.content ?? newFutureTemplate(), [entry]),
+    };
     action = "added";
-    where = { path: write.path, year: on.slice(0, 4) };
+  } else if (note && found.state === "open" && on !== undefined && found.scheduled !== on) {
+    const rawEntry = splitLines(note.content).lines[found.line - 1] ?? "";
+    futureWrite = {
+      path,
+      original: note.content,
+      content: applyLineEdits(note.content, [
+        { line: found.line, before: rawEntry, after: setScheduled(rawEntry, on) },
+      ]),
+    };
+    action = "rescheduled";
   }
 
-  const writes = [dailyWrite, ...futureWrites];
+  const writes = futureWrite ? [dailyWrite, futureWrite] : [dailyWrite];
   const dryRun = options.dryRun === true;
   const statuses = dryRun ? writes.map(writeStatus) : commitWrites(writes, options.hooks);
-  const dailyStatus = statuses[0] === "unchanged" ? "unchanged" : "updated";
-  const holder = futureWrites[futureWrites.length - 1];
   const result: ScheduleResult = {
-    status: dailyStatus,
+    status: statuses[0] === "unchanged" ? "unchanged" : "updated",
     ref: task.ref,
     path: task.path,
     date: task.date,
     state: "scheduled",
-    scheduled: on,
     dryRun,
-    future: { ...where, action, status: statuses[statuses.length - 1] ?? "unchanged" },
+    future: {
+      path,
+      action,
+      status: futureWrite ? (statuses[1] ?? "unchanged") : "unchanged",
+    },
   };
+  if (scheduled !== undefined) result.scheduled = scheduled;
   if (dryRun) {
     result.content = dailyContent;
-    if (holder) result.futureContent = holder.content;
+    const futureContent = futureWrite?.content ?? note?.content;
+    if (futureContent !== undefined) result.futureContent = futureContent;
   }
   return result;
 }

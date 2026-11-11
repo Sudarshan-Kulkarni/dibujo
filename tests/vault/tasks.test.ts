@@ -215,15 +215,22 @@ describe("scheduleTask", () => {
 });
 
 describe("scheduleTask and the future log", () => {
-  const readFuture = (v: ReturnType<typeof vault>, year: string) =>
-    readFileSync(futureNotePath(v.config, year), "utf8");
+  const readFuture = (v: ReturnType<typeof vault>) =>
+    readFileSync(futureNotePath(v.config), "utf8");
+  const writeFuture = (v: ReturnType<typeof vault>, ...body: string[]) => {
+    mkdirSync(dirname(futureNotePath(v.config)), { recursive: true });
+    writeFileSync(
+      futureNotePath(v.config),
+      ["---", "dibujo: 1", "type: future", "---", "", ...body, ""].join("\n"),
+    );
+  };
   const crashAfter = (index: number) => ({
     afterWrite: (i: number) => {
       if (i === index) throw new Error("crash");
     },
   });
 
-  it("creates the future note with the entry in the right month, linked to the daily task", () => {
+  it("creates Future.md with a dated entry linked to the daily task, without nested bullets", () => {
     const v = vault();
     v.write("2026-11-09", "- [ ] renew passport #priority", "\t- [ ] find photo");
     const result = scheduleTask(v.config, v.ref("2026-11-09", "renew passport"), "2026-12-01", {
@@ -231,43 +238,102 @@ describe("scheduleTask and the future log", () => {
     });
     expect(result).toMatchObject({
       status: "updated",
-      future: {
-        path: futureNotePath(v.config, "2026"),
-        year: "2026",
-        action: "added",
-        status: "created",
-      },
+      scheduled: "2026-12-01",
+      future: { path: futureNotePath(v.config), action: "added", status: "created" },
     });
     expect(v.read("2026-11-09")).toContain(
       "- [<] renew passport #priority ⏳ 2026-12-01 ^k1\n\t- [ ] find photo",
     );
-    expect(readFuture(v, "2026")).toContain(
-      "## 2026-12 December\n\n- [ ] renew passport [[Bujo/Daily/2026-11-09#^k1|from 2026-11-09]] #priority ⏳ 2026-12-01\n",
+    expect(readFuture(v)).toBe(
+      [
+        "---",
+        "dibujo: 1",
+        "type: future",
+        "---",
+        "",
+        "- [ ] renew passport [[Bujo/Daily/2026-11-09#^k1|from 2026-11-09]] #priority ⏳ 2026-12-01",
+        "",
+      ].join("\n"),
     );
-    expect(readFuture(v, "2026")).not.toContain("find photo");
   });
 
-  it("uses the next year's note for a date in the next year", () => {
+  it("schedules with no date: no ⏳ on the daily task, and an undated entry", () => {
     const v = vault();
     v.write("2026-11-09", "- [ ] renew passport");
-    const result = scheduleTask(v.config, v.ref("2026-11-09", "renew passport"), "2027-01-15");
-    expect(result.future).toMatchObject({ year: "2027", action: "added" });
-    expect(readFuture(v, "2027")).toContain("## 2027-01 January\n\n- [ ] renew passport");
+    writeFuture(v, "- [ ] learn Rust");
+    const result = scheduleTask(v.config, v.ref("2026-11-09", "renew passport"), undefined, {
+      newId: ids("k1"),
+    });
+    expect(result).toMatchObject({ state: "scheduled", future: { action: "added" } });
+    expect(result).not.toHaveProperty("scheduled");
+    expect(v.read("2026-11-09")).toContain("- [<] renew passport ^k1\n");
+    expect(readFuture(v)).toMatch(
+      /- \[ \] learn Rust\n- \[ \] renew passport \[\[Bujo\/Daily\/2026-11-09#\^k1\|from 2026-11-09\]\]\n$/,
+    );
   });
 
-  it("changes nothing when the same task is scheduled for the same date again", () => {
+  it("changes nothing when the same task is scheduled for the same date again, or with no date", () => {
     const v = vault();
     v.write("2026-11-09", "- [ ] renew passport");
     const ref = v.ref("2026-11-09", "renew passport");
     scheduleTask(v.config, ref, "2026-12-01", { newId: ids("k1") });
-    const files = [v.read("2026-11-09"), readFuture(v, "2026")];
+    const files = [v.read("2026-11-09"), readFuture(v)];
 
-    const again = scheduleTask(v.config, ref, "2026-12-01", { newId: ids("zz") });
-    expect(again).toMatchObject({
-      status: "unchanged",
-      future: { action: "unchanged", status: "unchanged" },
-    });
-    expect([v.read("2026-11-09"), readFuture(v, "2026")]).toEqual(files);
+    for (const date of ["2026-12-01", undefined]) {
+      const again = scheduleTask(v.config, ref, date, { newId: ids("zz") });
+      expect(again).toMatchObject({
+        status: "unchanged",
+        scheduled: "2026-12-01",
+        future: { action: "unchanged", status: "unchanged" },
+      });
+      expect([v.read("2026-11-09"), readFuture(v)]).toEqual(files);
+    }
+  });
+
+  it("changes the date of the task and of its entry in place, with one entry left", () => {
+    const v = vault();
+    v.write("2026-11-09", "- [ ] renew passport");
+    const ref = v.ref("2026-11-09", "renew passport");
+    scheduleTask(v.config, ref, "2026-12-01", { newId: ids("k1") });
+
+    const result = scheduleTask(v.config, ref, "2026-12-15", { newId: ids("k2") });
+    expect(result).toMatchObject({ status: "updated", future: { action: "rescheduled" } });
+    expect(v.read("2026-11-09")).toContain("- [<] renew passport ⏳ 2026-12-15 ^k1");
+    const future = readFuture(v);
+    expect(future).toContain(
+      "- [ ] renew passport [[Bujo/Daily/2026-11-09#^k1|from 2026-11-09]] ⏳ 2026-12-15\n",
+    );
+    expect(future.match(/renew passport/g)).toHaveLength(1);
+  });
+
+  it("gives an undated entry its date in place", () => {
+    const v = vault();
+    v.write("2026-11-09", "- [ ] renew passport");
+    const ref = v.ref("2026-11-09", "renew passport");
+    scheduleTask(v.config, ref, undefined, { newId: ids("k1") });
+    const result = scheduleTask(v.config, ref, "2026-12-15");
+    expect(result.future.action).toBe("rescheduled");
+    expect(v.read("2026-11-09")).toContain("- [<] renew passport ⏳ 2026-12-15 ^k1");
+    expect(readFuture(v)).toContain("from 2026-11-09]] ⏳ 2026-12-15\n");
+    expect(readFuture(v).match(/renew passport/g)).toHaveLength(1);
+  });
+
+  it.each([
+    ["brought in", "[>]", " ^m1"],
+    ["cancelled", "[-]", ""],
+    ["completed", "[x]", ""],
+  ])("updates the daily task but leaves an entry that was %s alone", (_name, box, id) => {
+    const v = vault();
+    v.write("2026-11-09", "- [<] renew passport ⏳ 2026-12-01 ^k1");
+    writeFuture(
+      v,
+      `- ${box} renew passport [[Bujo/Daily/2026-11-09#^k1|from 2026-11-09]] ⏳ 2026-12-01${id}`,
+    );
+    const future = readFuture(v);
+    const result = scheduleTask(v.config, v.ref("2026-11-09", "renew passport"), "2026-12-15");
+    expect(result).toMatchObject({ status: "updated", future: { action: "unchanged" } });
+    expect(v.read("2026-11-09")).toContain("- [<] renew passport ⏳ 2026-12-15 ^k1");
+    expect(readFuture(v)).toBe(future);
   });
 
   it("adds the missing entry for a task scheduled before the future log existed", () => {
@@ -279,38 +345,29 @@ describe("scheduleTask and the future log", () => {
     });
     expect(result).toMatchObject({ status: "updated", future: { action: "added" } });
     expect(v.read("2026-11-09")).toContain("- [<] renew ⏳ 2026-12-01 ^k1");
-    expect(readFuture(v, "2026")).toContain("- [ ] renew [[Bujo/Daily/2026-11-09#^k1|");
+    expect(readFuture(v)).toContain(
+      "- [ ] renew [[Bujo/Daily/2026-11-09#^k1|from 2026-11-09]] ⏳ 2026-12-01\n",
+    );
 
-    // With a block id already, the daily note is not touched.
+    // With a block id already, and no date given, the daily note is not touched
+    // and the entry takes the date the task already has.
     v.write("2026-11-10", "- [<] file taxes ⏳ 2026-12-05 ^t1");
-    const withId = scheduleTask(v.config, v.ref("2026-11-10", "file taxes"), "2026-12-05");
-    expect(withId).toMatchObject({ status: "unchanged", future: { action: "added" } });
-    expect(readFuture(v, "2026")).toContain("- [ ] file taxes [[Bujo/Daily/2026-11-10#^t1|");
-  });
-
-  it("reschedules the entry when the task is scheduled for a different date", () => {
-    const v = vault();
-    v.write("2026-11-09", "- [ ] renew passport");
-    const ref = v.ref("2026-11-09", "renew passport");
-    scheduleTask(v.config, ref, "2026-12-01", { newId: ids("k1") });
-
-    const result = scheduleTask(v.config, ref, "2026-12-15", { newId: ids("k2") });
-    expect(result).toMatchObject({ status: "updated", future: { action: "rescheduled" } });
-    expect(v.read("2026-11-09")).toContain("- [<] renew passport ⏳ 2026-12-15 ^k1");
-    const future = readFuture(v, "2026");
-    expect(future).toContain(
-      "- [<] renew passport [[Bujo/Daily/2026-11-09#^k1|from 2026-11-09]] ⏳ 2026-12-01 ^k2",
-    );
-    expect(future).toContain(
-      "- [ ] renew passport [[Bujo/Future/2026#^k2|from future log 2026]] ⏳ 2026-12-15",
+    const withId = scheduleTask(v.config, v.ref("2026-11-10", "file taxes"), undefined);
+    expect(withId).toMatchObject({
+      status: "unchanged",
+      scheduled: "2026-12-05",
+      future: { action: "added" },
+    });
+    expect(readFuture(v)).toContain(
+      "- [ ] file taxes [[Bujo/Daily/2026-11-10#^t1|from 2026-11-10]] ⏳ 2026-12-05\n",
     );
   });
 
-  it("fails before writing the daily note when a future note has an unsupported version", () => {
+  it("fails before writing the daily note when the future log has an unsupported version", () => {
     const v = vault();
     v.write("2026-11-09", "- [ ] renew passport");
-    mkdirSync(dirname(futureNotePath(v.config, "2025")), { recursive: true });
-    writeFileSync(futureNotePath(v.config, "2025"), "---\ndibujo: 9\n---\n");
+    mkdirSync(dirname(futureNotePath(v.config)), { recursive: true });
+    writeFileSync(futureNotePath(v.config), "---\ndibujo: 9\n---\n");
     const before = v.read("2026-11-09");
     expect(
       codeOf(() => scheduleTask(v.config, v.ref("2026-11-09", "renew passport"), "2026-12-01")),
@@ -326,14 +383,14 @@ describe("scheduleTask and the future log", () => {
       scheduleTask(v.config, ref, "2026-12-01", { newId: ids("k1"), hooks: crashAfter(0) }),
     ).toThrow("crash");
     expect(v.read("2026-11-09")).toContain("- [<] renew passport ⏳ 2026-12-01 ^k1");
-    expect(existsSync(futureNotePath(v.config, "2026"))).toBe(false);
+    expect(existsSync(futureNotePath(v.config))).toBe(false);
 
     const result = scheduleTask(v.config, ref, "2026-12-01", { newId: ids("zz") });
     expect(result).toMatchObject({
       status: "unchanged",
       future: { action: "added", status: "created" },
     });
-    expect(readFuture(v, "2026").match(/renew passport/g)).toHaveLength(1);
+    expect(readFuture(v).match(/renew passport/g)).toHaveLength(1);
   });
 });
 

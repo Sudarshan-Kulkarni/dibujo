@@ -12,14 +12,14 @@ interface FutureRescheduleOptions {
 export const registerFutureReschedule: Register = (future, ctx) => {
   future
     .command("reschedule")
-    .description("Move a waiting future log entry to a later date")
+    .description("Set or change the date of a waiting future log task, in place")
     .argument("<ref>", "the entry's ref, from `future show` or `future due`")
-    .argument("<date>", "the new date, YYYY-MM-DD, after today")
-    .option("--dry-run", "print both resulting notes without writing them")
+    .argument("<date>", "the date, YYYY-MM-DD, after today")
+    .option("--dry-run", "print the resulting note without writing it")
     .option("--json", "print the result as JSON")
     .addHelpText(
       "after",
-      "\nThe entry is marked [<] and a new waiting entry is added for the new date.\nIf a run is interrupted, run the same command again to finish it.",
+      "\nThe ⏳ date on the entry is set or changed where it is. The entry stays waiting, and no second\nentry is added. This works on entries that have no date yet.",
     )
     .action((ref: string, date: string, options: FutureRescheduleOptions) =>
       runFutureReschedule(ctx, ref, date, options),
@@ -43,24 +43,15 @@ export function runFutureReschedule(
     out.success(result, []);
     return;
   }
-  if (result.dryRun) {
-    out.info("Dry run: nothing was written.");
-    ctx.stdout.write(`--- ${result.from.path} (${result.from.status})\n`);
-    ctx.stdout.write(result.fromContent ?? "");
-    if (result.to.path !== result.from.path) {
-      ctx.stdout.write(`--- ${result.to.path} (${result.to.status})\n`);
-      ctx.stdout.write(result.toContent ?? "");
-    }
+  if (result.dryRun && result.content !== undefined) {
+    out.info(`Dry run: the entry would be ${result.status}. Nothing was written.`);
+    ctx.stdout.write(result.content);
     return;
   }
   out.success(
     result,
     result.status === "unchanged"
-      ? `Already rescheduled to ${result.to.date}. Nothing changed.`
-      : [
-          `Rescheduled to ${result.to.date}.`,
-          `  from ${result.from.path} (${result.from.status})`,
-          `  to   ${result.to.path} (${result.to.status})`,
-        ],
+      ? `The entry is already dated ${result.scheduled}. Nothing changed.`
+      : `Entry dated ${result.scheduled} in ${result.path}.`,
   );
 }

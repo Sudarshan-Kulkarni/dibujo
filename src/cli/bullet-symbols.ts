@@ -35,3 +35,25 @@ export function humanBullet(bullet: Bullet, extraIndent = 0): string {
   const suffix = suffixes.length > 0 ? `  ${suffixes.join("  ")}` : "";
   return `${margin}${"  ".repeat(bullet.depth + extraIndent)}${symbol} ${bullet.text}${suffix}`;
 }
+
+/** An entry as the future log commands report it, with one `date` for `⏳` (tasks) or `📅` (events). */
+export interface DatedEntry {
+  type: Bullet["type"];
+  state?: NonNullable<Bullet["state"]>;
+  signifiers: Bullet["signifiers"];
+  text: string;
+  depth?: number;
+  date?: string;
+  origin?: NonNullable<Bullet["origin"]>;
+}
+
+/** Like `humanBullet`, for an entry that has a `date` instead of `scheduled` or `eventDate`. */
+export function humanEntry(entry: DatedEntry, extraIndent = 0): string {
+  const { date, depth, ...rest } = entry;
+  const bullet: Bullet = { ...rest, depth: depth ?? 0 };
+  if (date !== undefined) {
+    if (entry.type === "task") bullet.scheduled = date;
+    else if (entry.type === "event") bullet.eventDate = date;
+  }
+  return humanBullet(bullet, extraIndent);
+}

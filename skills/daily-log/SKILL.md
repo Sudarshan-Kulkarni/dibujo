@@ -11,7 +11,8 @@ The note format, including the bullet types, signifiers, and capture JSON schema
 
 ## Rules
 
-- **Never edit vault files directly.** Read and write only through `dibujo` commands.
+- **Never edit vault files directly.** Read and write only through `dibujo` commands. The future log in particular is changed only through `dibujo` commands, never by editing `Future.md` or anything under `Future/`.
+- **Adding to the future log is a different job.** If the user asks to put something on their future log ("add learn Rust to my future log", "remind me in March"), use the `future-log` skill instead of logging it here.
 - **Use the user's words.** Shorten, but don't rephrase into your own voice, add details, or comment on what they wrote.
 - **Never claim a save that didn't happen.** Report success only when `dibujo` returns `"ok": true`.
 - Always pass `--json` and read the JSON result. Don't parse the human-readable output.

@@ -12,16 +12,16 @@ interface TaskScheduleOptions {
 export const registerTaskSchedule: Register = (task, ctx) => {
   task
     .command("schedule")
-    .description("Mark a task scheduled [<], set its ⏳ date, and add it to the future log")
+    .description("Mark a task scheduled [<] and add it to the future log, with a date or without")
     .argument("<ref>", "the task's ref, from `task review` or `log show --json`")
-    .argument("<date>", "the date it's scheduled for, YYYY-MM-DD, after the note's date")
+    .argument("[date]", "the date it's scheduled for, YYYY-MM-DD, after the note's date (optional)")
     .option("--dry-run", "print both resulting notes without writing them")
     .option("--json", "print the result as JSON")
     .addHelpText(
       "after",
-      "\nAlso writes a waiting entry for the date into the future log (Future/<year>.md),\nso `dibujo future due` lists the task when the date arrives.\nIf a run is interrupted, run the same command again to finish it.",
+      "\nAlso writes a waiting entry into the future log (Future.md). With a date, the task gets a\n⏳ date and `dibujo future due` lists the entry when the date arrives. Without one, the task\nis moved to the future log undated. Scheduling a task again with another date changes both\ndates in place.\nIf a run is interrupted, run the same command again to finish it.",
     )
-    .action((ref: string, date: string, options: TaskScheduleOptions) =>
+    .action((ref: string, date: string | undefined, options: TaskScheduleOptions) =>
       runTaskSchedule(ctx, ref, date, options),
     );
 };
@@ -29,7 +29,7 @@ export const registerTaskSchedule: Register = (task, ctx) => {
 export function runTaskSchedule(
   ctx: Ctx,
   ref: string,
-  date: string,
+  date: string | undefined,
   options: TaskScheduleOptions,
 ): void {
   const out = new Output(ctx, options.json === true);
@@ -48,13 +48,16 @@ export function runTaskSchedule(
     ctx.stdout.write(result.futureContent ?? "");
     return;
   }
-  const scheduled = result.scheduled ?? date;
+  const on = result.scheduled === undefined ? "" : ` for ${result.scheduled}`;
+  const futureLine = {
+    added: `Future log: added an entry in ${result.future.path} (${result.future.status}).`,
+    rescheduled: `Future log: changed the date of the entry in ${result.future.path}.`,
+    unchanged: `The future log already has it (${result.future.path}).`,
+  }[result.future.action];
   out.success(result, [
     result.status === "updated"
-      ? `Task scheduled for ${scheduled} in ${result.path}.`
-      : `The task is already scheduled for ${scheduled}.`,
-    result.future.action === "unchanged"
-      ? `The future log already has it (${result.future.path}).`
-      : `Future log: ${result.future.action === "added" ? "added an entry" : "moved the entry"} in ${result.future.path} (${result.future.status}).`,
+      ? `Task scheduled${on} in ${result.path}.`
+      : `The task is already scheduled${on}.`,
+    futureLine,
   ]);
 }

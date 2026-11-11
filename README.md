@@ -26,6 +26,8 @@ dibujo skills install      # installs the skills into ~/.kiro/skills/
 
 Then ask your agent to log your day.
 
+If you used an earlier version that kept the future log in `Future/YYYY.md` notes, run `dibujo future import` once to copy their entries into `Future.md`.
+
 ## Development
 
 ```sh
