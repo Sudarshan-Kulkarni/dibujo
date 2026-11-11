@@ -88,11 +88,11 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 9.2 In `README.md`, add a `monthly-migration` row to the skills table, with what it does and example phrases ("Do my monthly migration", "summarize last month").
   - _Requirements: 9.1 to 9.5, 10.5_
 
-- [ ] 10. Final checks
+- [x] 10. Final checks
   - _Depends on: 7, 8, 9_
-  - [ ] 10.1 Update `.kiro/steering/structure.md`: list `src/bujo/month.ts`, `src/bujo/monthly-note.ts`, `src/vault/month.ts`, the `month-*` CLI files, the `monthly-migration` skill, and the `Monthly/YYYY-MM.md` note location.
-  - [ ] 10.2 Run `npm run format`, `npm run check`, and `npm test`. Then run `npm run build` and `npm pack --dry-run`, and confirm the output includes `dist/cli/month-*.js` and `skills/monthly-migration/SKILL.md`.
-  - [ ] 10.3 With a scratch vault (`DIBUJO_VAULT_PATH` pointing at a temporary folder, and `XDG_CONFIG_HOME` at another), run the built CLI: add a few October notes with `log add --date`, then with `--date` in November run `task review`, `month show`, `month summary --dry-run`, and `month summary`. Confirm each exits with code 0 and prints valid JSON with `--json`, and that a second `month summary` with the same input reports `unchanged`.
+  - [x] 10.1 Update `.kiro/steering/structure.md`: list `src/bujo/month.ts`, `src/bujo/monthly-note.ts`, `src/vault/month.ts`, the `month-*` CLI files, the `monthly-migration` skill, and the `Monthly/YYYY-MM.md` note location.
+  - [x] 10.2 Run `npm run format`, `npm run check`, and `npm test`. Then run `npm run build` and `npm pack --dry-run`, and confirm the output includes `dist/cli/month-*.js` and `skills/monthly-migration/SKILL.md`.
+  - [x] 10.3 With a scratch vault (`DIBUJO_VAULT_PATH` pointing at a temporary folder, and `XDG_CONFIG_HOME` at another), run the built CLI: add a few October notes with `log add --date`, then with `--date` in November run `task review`, `month show`, `month summary --dry-run`, and `month summary`. Confirm each exits with code 0 and prints valid JSON with `--json`, and that a second `month summary` with the same input reports `unchanged`.
   - _Requirements: 10.4_
 
 ## For the user, after the pull request (not for the agent)

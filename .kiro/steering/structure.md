@@ -8,16 +8,19 @@ dibujo/
 ├── skills/                  # agent skills, one folder per skill
 │   ├── daily-log/
 │   │   └── SKILL.md
-│   └── morning-planning/
-│       └── SKILL.md         # later: reflect/, migrate/, review/
+│   ├── morning-planning/
+│   │   └── SKILL.md
+│   └── monthly-migration/
+│       └── SKILL.md         # later: reflect/, review/
 ├── docs/
 │   └── vault-format.md      # single source of truth for note format and bullet syntax
 ├── src/
-│   ├── cli/                 # index.ts (shebang), program.ts, context.ts, output.ts, one file per command (log-*, task-*, future-*)
+│   ├── cli/                 # index.ts (shebang), program.ts, context.ts, output.ts, one file per command (log-*, task-*, future-*, month-*)
 │   ├── bujo/                # pure logic: bullets and task fields, capture schema, note sections, refs,
-│   │                        #   line edits (edit.ts), migration planning (migrate.ts), future log notes (future.ts), journal date
+│   │                        #   line edits (edit.ts), migration planning (migrate.ts), future log notes (future.ts), month counts and moving tasks (month.ts),
+│   │                        #   monthly note (monthly-note.ts), journal date
 │   ├── vault/               # filesystem layer: safe paths, atomic writes, daily notes, task operations (tasks.ts),
-│   │                        #   future log operations (future.ts), ordered multi-note writes (write-plan.ts), block ids (block-id.ts)
+│   │                        #   future log operations (future.ts), month reading and summary (month.ts), ordered multi-note writes (write-plan.ts), block ids (block-id.ts)
 │   ├── skills/              # harness table and skill installer
 │   ├── notify/              # later: notification channels (Discord, etc.)
 │   ├── config.ts            # config file + env loading and validation (zod)
@@ -51,7 +54,7 @@ dibujo/
 - Commands get everything from the outside world (env, clock, stdin, stdout, home folder) through the `Ctx` in `src/cli/context.ts`, never from `process` directly, so tests can pass a fake context.
 - Expected failures throw `DibujoError` with a code from `src/errors.ts`. Add a new code there rather than throwing plain errors for things a user or skill can act on.
 - One CLI command per file in `src/cli/`, named after the command (e.g. `log-add.ts`). Register new commands in `src/cli/registers.ts`.
-- Notes live under `<vault>/<folder>/`: daily notes at `Daily/YYYY-MM-DD.md` and future log notes (one per year) at `Future/YYYY.md`.
+- Notes live under `<vault>/<folder>/`: daily notes at `Daily/YYYY-MM-DD.md`, the future log at `Future.md`, and monthly notes at `Monthly/YYYY-MM.md`.
 - Every vault path goes through `resolveInVault` in `src/vault/paths.ts`. Every vault write goes through `src/vault/atomic-write.ts`.
 - File names are kebab-case. Types and interfaces are PascalCase. Functions and variables are camelCase.
 - Prefer named exports. Don't use default exports.
