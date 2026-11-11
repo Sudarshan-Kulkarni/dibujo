@@ -62,10 +62,10 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `importOldNotes` against a temporary vault with two old year notes: copies what it should, leaves the old notes byte for byte the same, and a second run adds nothing.
   - _Requirements: 1.9, 4.1 to 4.8, 5.1 to 5.9, 6.1 to 6.10, 9.7, 9.8_
 
-- [ ] 3. Scheduling
+- [x] 3. Scheduling
   - _Depends on: 2_
-  - [ ] 3.1 `src/vault/tasks.ts`: change `scheduleTask(config, ref, date?, options)` as in "scheduleTask" in the design. Look the entry up by the daily task's origin, and follow the table: add, change the date in place, or leave the future log alone. The result's `future` field loses `year`. Drop the chain-walking and month imports. A future origin must still end a migration streak in `migrationStreak`.
-  - [ ] 3.2 Tests: rewrite the future log tests in `tests/vault/tasks.test.ts` (the `describe` block about scheduling and the future log). Cover one case for each row of the table, a schedule with no date, scheduling again with a different date (both dates change and there is still one entry), and an interrupted run finished by running the same command again. Leave the other tests in the file alone.
+  - [x] 3.1 `src/vault/tasks.ts`: change `scheduleTask(config, ref, date?, options)` as in "scheduleTask" in the design. Look the entry up by the daily task's origin, and follow the table: add, change the date in place, or leave the future log alone. The result's `future` field loses `year`. Drop the chain-walking and month imports. A future origin must still end a migration streak in `migrationStreak`.
+  - [x] 3.2 Tests: rewrite the future log tests in `tests/vault/tasks.test.ts` (the `describe` block about scheduling and the future log). Cover one case for each row of the table, a schedule with no date, scheduling again with a different date (both dates change and there is still one entry), and an interrupted run finished by running the same command again. Leave the other tests in the file alone.
   - _Requirements: 3.1 to 3.10_
 
 - [ ] 4. CLI
