@@ -58,8 +58,9 @@ If you used an earlier version that kept the future log in `Future/YYYY.md` note
 | Skill | What it does | Try saying |
 | --- | --- | --- |
 | `daily-log` | Turns what you write into short bullets (tasks, events, notes) in a day's note. | "Log my day", "jot down what's on my mind" |
-| `morning-planning` | Walks through yesterday's open tasks (migrate, schedule, cancel, complete, or leave), then the future log entries that are due, then a morning brain-dump. | "Plan my morning", "migrate yesterday's tasks" |
+| `morning-planning` | Walks through yesterday's open tasks (migrate, schedule, cancel, complete, or leave), then the future log entries that are due, then a morning brain-dump. On the morning after a month ends, and every morning after that until last month has a summary, it offers the monthly migration. | "Plan my morning", "migrate yesterday's tasks" |
 | `future-log` | Adds tasks, events, and notes to the future log, with a date if you have one, and reads or changes what's in it. | "Put the dentist on Dec 12 on my future log", "what's in my future log?" |
+| `monthly-migration` | Walks through the tasks last month left open and the future log tasks with no date or a date that has passed (migrate, schedule, cancel, complete, or leave), then writes a short monthly summary: highlights, tasks done, tasks that kept moving, and themes and intentions. | "Do my monthly migration", "summarize last month" |
 
 Each skill shows you what it plans to write and asks you to confirm before it saves.
 
@@ -69,6 +70,8 @@ Each skill shows you what it plans to write and asks you to confirm before it sa
 <vault>/Bujo/
 ├── Daily/
 │   └── 2026-11-09.md
+├── Monthly/
+│   └── 2026-10.md
 └── Future.md
 ```
 
@@ -130,6 +133,7 @@ The future log holds things you can't do now.
 | `dibujo config` | Show the active config. |
 | `dibujo log` | `show` a day's bullets, or `add` a capture. |
 | `dibujo task` | `review` yesterday's open tasks, `set` a state, `schedule` a task, or `migrate` it. |
+| `dibujo month` | `show` a past month (leftover tasks, counts, moving tasks), or write its `summary`. |
 | `dibujo future` | `add`, `show`, `due`, `migrate`, `reschedule`, `cancel`, or `import`. |
 | `dibujo skills` | `install` the agent skills. |
 
@@ -151,7 +155,6 @@ dibujo makes no network requests and sends nothing anywhere. Your notes stay in 
 ## Planned, not built yet
 
 - Evening reflection.
-- Monthly migration of open tasks.
 - Reminders.
 - Monthly and yearly reviews.
 

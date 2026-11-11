@@ -18,6 +18,7 @@ const RUNTIME_CODES = [
   "TASK_NOT_FOUND",
   "NOT_A_TASK",
   "TASK_NOT_OPEN",
+  "SUMMARY_EXISTS",
   "INTERNAL",
 ] as const;
 
