@@ -157,8 +157,8 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
 
 These checks need Obsidian or a real agent session, which a cloud sandbox doesn't have.
 
-- [ ] A. Run `npm run build && dibujo skills install` (or `npm run dev -- skills install --target .kiro/skills` in the repo) so the updated skill is installed.
-- [ ] B. In Obsidian, open a daily note with a scheduled task. Click its link in the future log entry, and check that it opens the original task. Check that the daily note shows the future log in its backlinks pane.
-- [ ] C. Click the "from future log 2026" link in a daily task that came back from the future log, and check that it opens the entry.
-- [ ] D. Run "plan my morning" with a due entry in the future log. Check each choice (bring in, push, cancel, leave), then run it again the next morning and check that the entries you left are offered again.
-- [ ] E. Check that the Tasks plugin, if you use it, shows the `⏳` dates on future log entries.
+- [x] A. Run `npm run build && dibujo skills install` (or `npm run dev -- skills install --target .kiro/skills` in the repo) so the updated skill is installed.
+- [x] B. In Obsidian, open a daily note with a scheduled task. Click its link in the future log entry, and check that it opens the original task. Check that the daily note shows the future log in its backlinks pane.
+- [x] C. Click the "from future log 2026" link in a daily task that came back from the future log, and check that it opens the entry.
+- [x] D. Run "plan my morning" with a due entry in the future log. Check each choice (bring in, push, cancel, leave), then run it again the next morning and check that the entries you left are offered again.
+- [x] E. Check that the Tasks plugin, if you use it, shows the `⏳` dates on future log entries.

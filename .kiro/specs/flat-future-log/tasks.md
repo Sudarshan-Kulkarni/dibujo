@@ -105,7 +105,7 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
 
 These need Obsidian and a real agent, so the task runner can't tick them.
 
-- [ ] A. Run `npm run build`, `npm link`, and `dibujo skills install`. Then run `dibujo future show --json` against your vault and check that `legacyNotes` lists `Future/2026.md`. Run `dibujo future import --dry-run`, then `dibujo future import`, and check that your three tasks are in `Future.md`.
-- [ ] B. In Obsidian, click an origin link that points to the future log (`[[Bujo/Future#^id|from future log]]`). It should open `Future.md`, even with the old `Future/` folder next to it, and `Future.md` should show the daily task in its backlinks.
-- [ ] C. In a new agent session, say "put the dentist on Dec 12 on my future log" and "add learn Rust to my future log". The agent should use the `future-log` skill and `dibujo future add`, and not edit any file.
-- [ ] D. Run morning planning in a real agent with a due entry, a few undated tasks, and an event dated today. Check that it asks about the due entry, mentions the event, asks "Would you like to take a look at your future log?", and brings in the tasks you pick.
+- [x] A. Run `npm run build`, `npm link`, and `dibujo skills install`. Then run `dibujo future show --json` against your vault and check that `legacyNotes` lists `Future/2026.md`. Run `dibujo future import --dry-run`, then `dibujo future import`, and check that your three tasks are in `Future.md`.
+- [x] B. In Obsidian, click an origin link that points to the future log (`[[Bujo/Future#^id|from future log]]`). It should open `Future.md`, even with the old `Future/` folder next to it, and `Future.md` should show the daily task in its backlinks.
+- [x] C. In a new agent session, say "put the dentist on Dec 12 on my future log" and "add learn Rust to my future log". The agent should use the `future-log` skill and `dibujo future add`, and not edit any file.
+- [x] D. Run morning planning in a real agent with a due entry, a few undated tasks, and an event dated today. Check that it asks about the due entry, mentions the event, asks "Would you like to take a look at your future log?", and brings in the tasks you pick.
