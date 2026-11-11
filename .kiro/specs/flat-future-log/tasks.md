@@ -84,12 +84,12 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
   - [x] 5.2 Update `tests/docs/vault-format.test.ts` for the new examples: the future log example parses with the flat parser, and its links agree. Remove the checks for months.
   - _Requirements: 10.1 to 10.3_
 
-- [ ] 6. Skills
+- [x] 6. Skills
   - _Depends on: 5_
-  - [ ] 6.1 Create `skills/future-log/SKILL.md` as in "future-log (new)" in the design. Frontmatter has only `name` and `description`. Link to `references/vault-format.md`. Every command uses the installed `dibujo ... --json`, with the same `npx -y digi-bujo` fallback as the other skills. Use a quoted heredoc for the JSON on stdin.
-  - [ ] 6.2 Update `skills/morning-planning/SKILL.md` as in "morning-planning" in the design: the new step order, the optional date when scheduling, today's events, the "look at your future log" step, priority for picked tasks, and the new `future reschedule` result fields. Keep the rest of the skill as it is.
-  - [ ] 6.3 Update `skills/daily-log/SKILL.md` and `skills/morning-planning/SKILL.md` with the rule that the future log is changed only through `dibujo` commands and that requests to add to it use the `future-log` skill.
-  - [ ] 6.4 In `README.md`, add one line to "Set up" about the future log (`dibujo future import` if you used the earlier version). Don't add anything else.
+  - [x] 6.1 Create `skills/future-log/SKILL.md` as in "future-log (new)" in the design. Frontmatter has only `name` and `description`. Link to `references/vault-format.md`. Every command uses the installed `dibujo ... --json`, with the same `npx -y digi-bujo` fallback as the other skills. Use a quoted heredoc for the JSON on stdin.
+  - [x] 6.2 Update `skills/morning-planning/SKILL.md` as in "morning-planning" in the design: the new step order, the optional date when scheduling, today's events, the "look at your future log" step, priority for picked tasks, and the new `future reschedule` result fields. Keep the rest of the skill as it is.
+  - [x] 6.3 Update `skills/daily-log/SKILL.md` and `skills/morning-planning/SKILL.md` with the rule that the future log is changed only through `dibujo` commands and that requests to add to it use the `future-log` skill.
+  - [x] 6.4 In `README.md`, add one line to "Set up" about the future log (`dibujo future import` if you used the earlier version). Don't add anything else.
   - _Requirements: 8.1 to 8.11, 9.1 to 9.6, 9.9, 10.5_
 
 - [ ] 7. Wrap-up
