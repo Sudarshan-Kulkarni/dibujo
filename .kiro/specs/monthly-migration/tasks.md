@@ -41,20 +41,20 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - A property: `appendSummary` keeps every original line in order, for generated notes.
   - _Requirements: 5.2 to 5.5, 6.3_
 
-- [ ] 4. Reading a month and the pending check (vault layer)
+- [x] 4. Reading a month and the pending check (vault layer)
   - _Depends on: 3_
-  - [ ] 4.1 In `src/vault/tasks.ts`, split `openTasksIn(parsed, date, loadNote, flagAfterDays)` out of `reviewTasks`, as in the design. `reviewTasks` must return exactly what it does now. The existing tests prove it.
-  - [ ] 4.2 Create `src/vault/month.ts` with `readMonth` and `pendingMonth`. Follow "`readMonth`" and "`pendingMonth`" in the design: refuse a month that isn't over, skip notes with an unsupported version into `skipped`, list leftovers oldest note first with their date and path, load `Future.md` for the chains (and build them without it if its version is unsupported), and report the summary state. `pendingMonth` never throws.
-  - [ ] 4.3 Add `pendingMonth` to `ReviewResult` in `reviewTasks`, from `pendingMonth(config, today)`.
-  - [ ] 4.4 Tests in `tests/vault/month.test.ts` (core only):
+  - [x] 4.1 In `src/vault/tasks.ts`, split `openTasksIn(parsed, date, loadNote, flagAfterDays)` out of `reviewTasks`, as in the design. `reviewTasks` must return exactly what it does now. The existing tests prove it.
+  - [x] 4.2 Create `src/vault/month.ts` with `readMonth` and `pendingMonth`. Follow "`readMonth`" and "`pendingMonth`" in the design: refuse a month that isn't over, skip notes with an unsupported version into `skipped`, list leftovers oldest note first with their date and path, load `Future.md` for the chains (and build them without it if its version is unsupported), and report the summary state. `pendingMonth` never throws.
+  - [x] 4.3 Add `pendingMonth` to `ReviewResult` in `reviewTasks`, from `pendingMonth(config, today)`.
+  - [x] 4.4 Tests in `tests/vault/month.test.ts` (core only):
     - `readMonth` on a month with three notes: leftovers in order with children, a note with `dibujo: 99` in `skipped` and left out of the counts, and the month of today refused with `INVALID_DATE`.
     - `pendingMonth`: null with no notes in the past month, the month when there are notes and no monthly note, null once the monthly note has a summary, and null (no throw) when the monthly note has `dibujo: 99`.
   - _Requirements: 1.1 to 1.6, 2.1 to 2.3, 7.1 to 7.4_
 
-- [ ] 5. Writing the summary (vault layer)
+- [x] 5. Writing the summary (vault layer)
   - _Depends on: 4_
-  - [ ] 5.1 In `src/vault/month.ts`, add `writeSummary`, following "`writeSummary`" in the design. It computes the counts and moving tasks from disk, never takes them as input, and writes with `writeNew` or `replaceIfUnchanged`.
-  - [ ] 5.2 Tests in `tests/vault/month.test.ts` (core only):
+  - [x] 5.1 In `src/vault/month.ts`, add `writeSummary`, following "`writeSummary`" in the design. It computes the counts and moving tasks from disk, never takes them as input, and writes with `writeNew` or `replaceIfUnchanged`.
+  - [x] 5.2 Tests in `tests/vault/month.test.ts` (core only):
     - Creating the note, and checking that "Tasks done" matches the completed tasks on disk.
     - Appending to a hand-made monthly note with a `## Reading` heading, keeping its lines.
     - The same input again: `unchanged`, and the file is byte for byte the same.

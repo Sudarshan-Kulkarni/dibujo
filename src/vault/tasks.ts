@@ -19,6 +19,7 @@ import { replaceIfUnchanged, type WriteHooks, writeNew } from "./atomic-write.js
 import { freshBlockId, randomBlockId, usedBlockIds } from "./block-id.js";
 import { assertSupported, readIfExists } from "./daily.js";
 import { loadFutureNote } from "./future.js";
+import { pendingMonth } from "./month.js";
 import { assertLinkSafeFolder, dailyNotePath, futureNotePath } from "./paths.js";
 import {
   type CommitOptions,
@@ -425,6 +426,8 @@ export interface ReviewResult {
   exists: boolean;
   flagAfterDays: number;
   tasks: ReviewTask[];
+  /** The past month, when it has daily notes and no monthly summary yet. Otherwise `null`. */
+  pendingMonth: { month: string; path: string } | null;
 }
 
 /**
@@ -441,7 +444,9 @@ export function reviewTasks(config: VaultConfig, today: string): ReviewResult {
     flagAfterDays: config.migrationFlagDays,
   };
   const content = readIfExists(path);
-  if (content === null) return { ...base, exists: false, tasks: [] };
+  if (content === null) {
+    return { ...base, exists: false, tasks: [], pendingMonth: pendingMonth(config, today) };
+  }
   const parsed = parseDailyNote(content);
   assertSupported(parsed, path);
 
@@ -451,23 +456,40 @@ export function reviewTasks(config: VaultConfig, today: string): ReviewResult {
     return cache.get(date) ?? null;
   };
 
+  const tasks = openTasksIn(parsed, yesterday, loadNote, config.migrationFlagDays);
+  const pending = pendingMonth(config, today);
+
+  return { ...base, exists: true, tasks, pendingMonth: pending };
+}
+
+/**
+ * The open tasks in one parsed note that aren't moved along with an open parent, in
+ * note order, with their migration streaks. `loadNote` loads the notes of other days
+ * for the streaks. `reviewTasks` lists yesterday's with it, and `month show` lists a month's.
+ */
+export function openTasksIn(
+  parsed: ParsedNote,
+  date: string,
+  loadNote: (date: string) => ParsedNote | null,
+  flagAfterDays: number,
+): ReviewTask[] {
   const bullets = parsed.bullets;
   const tasks: ReviewTask[] = [];
   bullets.forEach((b, index) => {
     if (b.type !== "task" || b.state !== "open" || movesWithAncestor(bullets, index)) return;
-    const { streak, since } = migrationStreak(b, yesterday, loadNote);
+    const { streak, since } = migrationStreak(b, date, loadNote);
     tasks.push({
-      ref: formatRef(yesterday, b.line, fingerprint(b)),
+      ref: formatRef(date, b.line, fingerprint(b)),
       line: b.line,
       text: b.text,
       signifiers: b.signifiers,
       depth: b.depth,
       streak,
       since,
-      flagged: streak >= config.migrationFlagDays,
+      flagged: streak >= flagAfterDays,
       children: movingDescendants(bullets, index).map((c) => {
         const child: ReviewChild = {
-          ref: formatRef(yesterday, c.line, fingerprint(c)),
+          ref: formatRef(date, c.line, fingerprint(c)),
           type: c.type,
           text: c.text,
           signifiers: c.signifiers,
@@ -478,8 +500,7 @@ export function reviewTasks(config: VaultConfig, today: string): ReviewResult {
       }),
     });
   });
-
-  return { ...base, exists: true, tasks };
+  return tasks;
 }
 
 /**
@@ -512,7 +533,8 @@ export function migrationStreak(
   return { streak, since };
 }
 
-function loadQuietly(config: VaultConfig, date: string): ParsedNote | null {
+/** Loads a daily note, or `null` when it is missing or this dibujo can't read it. */
+export function loadQuietly(config: VaultConfig, date: string): ParsedNote | null {
   const path = dailyNotePath(config, date);
   const content = readIfExists(path);
   if (content === null) return null;
