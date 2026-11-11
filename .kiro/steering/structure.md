@@ -20,7 +20,7 @@ dibujo/
 │   │                        #   line edits (edit.ts), migration planning (migrate.ts), future log notes (future.ts), month counts and moving tasks (month.ts),
 │   │                        #   monthly note (monthly-note.ts), journal date
 │   ├── vault/               # filesystem layer: safe paths, atomic writes, daily notes, task operations (tasks.ts),
-│   │                        #   future log operations (future.ts), month reading and summary (month.ts), ordered multi-note writes (write-plan.ts), block ids (block-id.ts)
+│   │                        #   future log operations (future.ts), month reading and summary (month.ts), the pending month check (pending-month.ts), ordered multi-note writes (write-plan.ts), block ids (block-id.ts)
 │   ├── skills/              # harness table and skill installer
 │   ├── notify/              # later: notification channels (Discord, etc.)
 │   ├── config.ts            # config file + env loading and validation (zod)

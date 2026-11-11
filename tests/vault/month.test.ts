@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 import { parseSummaryInput } from "../../src/bujo/monthly-note.js";
 import type { VaultConfig } from "../../src/config.js";
 import { DibujoError } from "../../src/errors.js";
-import { pendingMonth, readMonth, writeSummary } from "../../src/vault/month.js";
+import { readMonth, writeSummary } from "../../src/vault/month.js";
 import { dailyNotePath, monthlyNotePath } from "../../src/vault/paths.js";
+import { pendingMonth } from "../../src/vault/pending-month.js";
 import { tempDir } from "../helpers/ctx.js";
 
 function vault() {

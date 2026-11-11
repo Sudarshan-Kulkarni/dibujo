@@ -19,8 +19,8 @@ import { replaceIfUnchanged, type WriteHooks, writeNew } from "./atomic-write.js
 import { freshBlockId, randomBlockId, usedBlockIds } from "./block-id.js";
 import { assertSupported, readIfExists } from "./daily.js";
 import { loadFutureNote } from "./future.js";
-import { pendingMonth } from "./month.js";
 import { assertLinkSafeFolder, dailyNotePath, futureNotePath } from "./paths.js";
+import { pendingMonth } from "./pending-month.js";
 import {
   type CommitOptions,
   commitWrites,
