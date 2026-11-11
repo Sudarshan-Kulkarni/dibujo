@@ -62,11 +62,11 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - The current month refused with `INVALID_DATE`.
   - _Requirements: 6.1 to 6.8_
 
-- [ ] 6. CLI commands
+- [x] 6. CLI commands
   - _Depends on: 5_
-  - [ ] 6.1 Create `src/cli/month.ts` (the group), `month-show.ts`, and `month-summary.ts`, following "CLI" in the design, and register the group in `src/cli/registers.ts`. The month argument defaults to the past month of `--date` or today's journal date. `month summary` reads stdin like `future-add.ts`: `USAGE` when stdin is a terminal. Both support `--json`. `month summary` supports `--dry-run`.
-  - [ ] 6.2 In `src/cli/task-review.ts`, print one line when `pendingMonth` is set, as in the design. The JSON gets the field from task 4.3 without other changes.
-  - [ ] 6.3 One end-to-end test in `tests/cli/month.test.ts`, in the style of `tests/cli/task.test.ts`: with notes in October and a clock in November, `task review --json` reports `pendingMonth` for `2026-10`; `month show --json` lists a leftover; `task migrate` on it succeeds; `month summary --json` with stdin writes the note; then `task review --json` reports `pendingMonth: null`. Every `--json` output must parse. In the same file, check that `month show 2026-11` with a November clock exits with code 2.
+  - [x] 6.1 Create `src/cli/month.ts` (the group), `month-show.ts`, and `month-summary.ts`, following "CLI" in the design, and register the group in `src/cli/registers.ts`. The month argument defaults to the past month of `--date` or today's journal date. `month summary` reads stdin like `future-add.ts`: `USAGE` when stdin is a terminal. Both support `--json`. `month summary` supports `--dry-run`.
+  - [x] 6.2 In `src/cli/task-review.ts`, print one line when `pendingMonth` is set, as in the design. The JSON gets the field from task 4.3 without other changes.
+  - [x] 6.3 One end-to-end test in `tests/cli/month.test.ts`, in the style of `tests/cli/task.test.ts`: with notes in October and a clock in November, `task review --json` reports `pendingMonth` for `2026-10`; `month show --json` lists a leftover; `task migrate` on it succeeds; `month summary --json` with stdin writes the note; then `task review --json` reports `pendingMonth: null`. Every `--json` output must parse. In the same file, check that `month show 2026-11` with a November clock exits with code 2.
   - _Requirements: 1, 6, 7, 10.4_
 
 - [ ] 7. Vault format document

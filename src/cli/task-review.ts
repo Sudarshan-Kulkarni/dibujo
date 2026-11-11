@@ -1,3 +1,4 @@
+import { monthName } from "../bujo/journal-date.js";
 import { reviewTasks } from "../vault/tasks.js";
 import { humanBullet } from "./bullet-symbols.js";
 import type { Ctx } from "./context.js";
@@ -23,14 +24,19 @@ export function runTaskReview(ctx: Ctx, options: TaskReviewOptions): void {
   const out = new Output(ctx, options.json === true);
   const { config, date } = vaultAndDate(ctx, options.date);
   const review = reviewTasks(config, date);
+  const pending = review.pendingMonth
+    ? [
+        `${monthName(review.pendingMonth.month)} has no monthly summary yet. Run the monthly migration.`,
+      ]
+    : [];
 
   if (review.tasks.length === 0) {
-    out.success(
-      review,
+    out.success(review, [
       review.exists
         ? `No open tasks in ${review.yesterday}'s note.`
         : `No note for ${review.yesterday} (${review.path}).`,
-    );
+      ...pending,
+    ]);
     return;
   }
 
@@ -47,5 +53,6 @@ export function runTaskReview(ctx: Ctx, options: TaskReviewOptions): void {
     }
     lines.push(`     ref ${t.ref}`);
   }
+  if (pending.length > 0) lines.push("", ...pending);
   out.success(review, lines);
 }
