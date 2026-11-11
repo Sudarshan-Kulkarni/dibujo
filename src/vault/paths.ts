@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import type { VaultConfig } from "../config.js";
 import { DibujoError } from "../errors.js";
@@ -24,8 +25,30 @@ export function dailyNotePath(config: VaultConfig, date: string): string {
   return resolveInVault(config, "Daily", `${date}.md`);
 }
 
-export function futureNotePath(config: VaultConfig, year: string): string {
-  return resolveInVault(config, "Future", `${year}.md`);
+/** The future log: one note, `Future.md`, in the dibujo folder. */
+export function futureNotePath(config: VaultConfig): string {
+  return resolveInVault(config, "Future.md");
+}
+
+const LEGACY_FUTURE_FILE = /^\d{4}\.md$/;
+
+/**
+ * The old year notes (`Future/YYYY.md`) written by the earlier year-based future log,
+ * oldest year first. A missing folder gives an empty list.
+ */
+export function legacyFutureNotePaths(config: VaultConfig): string[] {
+  let names: string[];
+  try {
+    names = readdirSync(resolveInVault(config, "Future"));
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return [];
+    throw error;
+  }
+  return names
+    .filter((name) => LEGACY_FUTURE_FILE.test(name))
+    .sort()
+    .map((name) => resolveInVault(config, "Future", name));
 }
 
 const UNSAFE_LINK_CHARS = /[[\]|#^]/;

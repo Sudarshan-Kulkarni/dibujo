@@ -43,10 +43,10 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `tests/bujo/future-import.test.ts` (new): copies open tasks, events, and notes and skips other states; flattens a two-step chain to its daily origin; keeps the link when the chain is broken; drops a colliding block id; finds entries under a `## December` heading; running the plan again against its own output adds nothing, even when an imported entry has since been brought in.
   - _Requirements: 1.3 to 1.8, 2.1 to 2.7, 4.2 to 4.5, 7.1 to 7.4, 9.7, 9.8_
 
-- [ ] 2. Vault layer
+- [x] 2. Vault layer
   - _Depends on: 1_
-  - [ ] 2.1 `src/vault/paths.ts`: `futureNotePath(config)` returns `Future.md` in the dibujo folder. Add `legacyFutureNotePaths(config)`, which lists `Future/YYYY.md`, oldest year first, and gives an empty list when the folder is missing.
-  - [ ] 2.2 `src/vault/future.ts`: rewrite it as in "Vault operations" in the design. Keep the code of the current `migrateEntry` and `cancelEntry` where it still applies.
+  - [x] 2.1 `src/vault/paths.ts`: `futureNotePath(config)` returns `Future.md` in the dibujo folder. Add `legacyFutureNotePaths(config)`, which lists `Future/YYYY.md`, oldest year first, and gives an empty list when the folder is missing.
+  - [x] 2.2 `src/vault/future.ts`: rewrite it as in "Vault operations" in the design. Keep the code of the current `migrateEntry` and `cancelEntry` where it still applies.
     - `loadFutureNote`, `resolveEntry` (by line and fingerprint, then by a unique fingerprint, else `TASK_NOT_FOUND`; `NOT_A_TASK` for events and notes), `showFuture`, and `dueFor`, which returns `entries`, `events`, `waiting`, and `legacyNotes`. `scheduledFrom` is the origin date of an entry with a daily origin, and `null` otherwise.
     - `addEntries` (loads or starts the note, runs `planAdd`, appends, writes; the result lists the entries added with their refs, and the number skipped).
     - `migrateEntry`: the entry becomes `[>]` with a block id, written first, and the daily copy has the future origin `{ blockId }`. A copy that already exists is found by that origin, so a rerun adds nothing.
@@ -54,7 +54,7 @@ Read `requirements.md` and `design.md` in this folder first. Each task says whic
     - `cancelEntry`: as today, without the year.
     - `importOldNotes` and `legacyNotesToImport`, using `planImport`. An unsupported old note stops `importOldNotes` with `NOTE_VERSION_UNSUPPORTED`, and is ignored by `legacyNotesToImport`.
     - Delete everything else in the file that is year-based.
-  - [ ] 2.3 Tests in `tests/vault/future.test.ts` (rewrite, and use the `vault()` and `ids()` helpers):
+  - [x] 2.3 Tests in `tests/vault/future.test.ts` (rewrite, and use the `vault()` and `ids()` helpers):
     - `addEntries` creates the note, appends in order, and a second identical run adds nothing.
     - `dueFor` returns the due entries, the events dated today, and the other waiting tasks, and leaves out brought-in and cancelled entries.
     - `migrateEntry` adds a daily copy with a link back, and a rerun after an interruption (use the write hook) adds no second copy.
