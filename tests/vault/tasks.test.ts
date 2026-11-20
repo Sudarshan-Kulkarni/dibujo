@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { formatBullet } from "../../src/bujo/bullet.js";
@@ -749,6 +749,122 @@ describe("reviewTasks", () => {
     expect(reviewTasks(v.config, "2026-11-10")).toMatchObject({ exists: false, tasks: [] });
     v.write("2026-11-09", "- [x] done", "* event");
     expect(reviewTasks(v.config, "2026-11-10")).toMatchObject({ exists: true, tasks: [] });
+  });
+
+  it("falls back to the latest earlier note when yesterday has none", () => {
+    const v = vault();
+    v.write("2026-11-18", "- [ ] call the bank");
+    const review = reviewTasks(v.config, "2026-11-20");
+    expect(review.tasks.map((t) => t.text)).toEqual(["call the bank"]);
+    expect(review).toMatchObject({
+      yesterday: "2026-11-19",
+      exists: false,
+      path: v.path("2026-11-19"),
+      source: { date: "2026-11-18", path: v.path("2026-11-18"), isYesterday: false, gapDays: 1 },
+    });
+    expect(review.tasks[0]?.ref).toBe(v.ref("2026-11-18", "call the bank"));
+  });
+
+  it("reports yesterday as the source when its note exists, even if empty", () => {
+    const v = vault();
+    v.write("2026-11-17", "- [ ] older task");
+    v.write("2026-11-19");
+    const review = reviewTasks(v.config, "2026-11-20");
+    expect(review.tasks).toEqual([]);
+    expect(review).toMatchObject({
+      exists: true,
+      source: { date: "2026-11-19", isYesterday: true, gapDays: 0 },
+    });
+    v.write("2026-11-19", "- [ ] fresh");
+    expect(reviewTasks(v.config, "2026-11-20").tasks.map((t) => t.text)).toEqual(["fresh"]);
+  });
+
+  it("counts the gap for a note four days back", () => {
+    const v = vault();
+    v.write("2026-11-16", "- [ ] friday task");
+    expect(reviewTasks(v.config, "2026-11-20").source).toMatchObject({
+      date: "2026-11-16",
+      isYesterday: false,
+      gapDays: 3,
+    });
+  });
+
+  it.each([
+    ["a month end", "2026-10-30", "2026-11-02", 2],
+    ["a year end", "2026-12-30", "2027-01-02", 2],
+  ])("falls back across %s", (_name, noteDate, today, gap) => {
+    const v = vault();
+    v.write(noteDate, "- [ ] carry on");
+    const review = reviewTasks(v.config, today);
+    expect(review.tasks.map((t) => t.text)).toEqual(["carry on"]);
+    expect(review.source).toMatchObject({ date: noteDate, gapDays: gap });
+  });
+
+  it("returns no source when there are no earlier notes", () => {
+    const v = vault();
+    expect(reviewTasks(v.config, "2026-11-20")).toMatchObject({
+      exists: false,
+      tasks: [],
+      source: null,
+    });
+  });
+
+  it("ignores notes dated today or later", () => {
+    const v = vault();
+    v.write("2026-11-20", "- [ ] today");
+    v.write("2026-11-25", "- [ ] future");
+    expect(reviewTasks(v.config, "2026-11-20")).toMatchObject({ tasks: [], source: null });
+  });
+
+  it("ignores files in Daily/ that are not real dates", () => {
+    const v = vault();
+    v.write("2026-11-18", "- [ ] real");
+    for (const name of ["2026-13-45.md", "notes.md", "2026-11-19.txt"]) {
+      writeFileSync(join(dirname(v.path("2026-11-18")), name), "- [ ] junk");
+    }
+    const review = reviewTasks(v.config, "2026-11-20");
+    expect(review.tasks.map((t) => t.text)).toEqual(["real"]);
+    expect(review.source?.date).toBe("2026-11-18");
+  });
+
+  it("stops at an empty older note instead of searching further back", () => {
+    const v = vault();
+    v.write("2026-11-10", "- [ ] much older");
+    v.write("2026-11-18", "- [x] done");
+    const review = reviewTasks(v.config, "2026-11-20");
+    expect(review.tasks).toEqual([]);
+    expect(review.source).toMatchObject({ date: "2026-11-18", gapDays: 1 });
+  });
+
+  it("fails on an older note this version cannot read", () => {
+    const v = vault();
+    v.write("2026-11-18", "- [ ] task");
+    writeFileSync(v.path("2026-11-18"), v.read("2026-11-18").replace("dibujo: 1", "dibujo: 99"));
+    expect(codeOf(() => reviewTasks(v.config, "2026-11-20"))).toBe("NOTE_VERSION_UNSUPPORTED");
+  });
+
+  it("works for a past --date, relative to that date", () => {
+    const v = vault();
+    v.write("2026-11-03", "- [ ] early");
+    v.write("2026-11-18", "- [ ] late");
+    expect(reviewTasks(v.config, "2026-11-05")).toMatchObject({
+      source: { date: "2026-11-03", gapDays: 1 },
+    });
+  });
+
+  it("migrates a task from a fallback source day, with the link and the mark", () => {
+    const v = vault();
+    v.write("2026-11-18", "- [ ] call the bank");
+    const review = reviewTasks(v.config, "2026-11-20");
+    const result = migrateTask(v.config, review.tasks[0]?.ref ?? "", {
+      now: new Date("2026-11-20T08:00:00"),
+      newId: ids("r1"),
+    });
+    expect(result.status).toBe("migrated");
+    expect(v.read("2026-11-18")).toContain("- [>] call the bank ^r1");
+    expect(v.read("2026-11-20")).toContain("- [ ] call the bank");
+    expect(v.read("2026-11-20")).toContain("[[Bujo/Daily/2026-11-18#^r1|from 2026-11-18]]");
+    expect(reviewTasks(v.config, "2026-11-21").source?.date).toBe("2026-11-20");
   });
 
   it("reviews the calendar day before, across a month boundary", () => {

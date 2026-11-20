@@ -34,11 +34,11 @@ export function monthlyNotePath(config: VaultConfig, month: string): string {
 const DAILY_FILE = /^(\d{4}-\d{2}-\d{2})\.md$/;
 
 /**
- * The dates of the daily notes in a `YYYY-MM` month, oldest first. It reads the folder's
- * file names only. A missing `Daily/` folder gives an empty list, and names that aren't
- * real dates are ignored.
+ * The dates of all daily notes, oldest first, across every month and year. It reads the
+ * folder's file names only. A missing `Daily/` folder gives an empty list, and names that
+ * aren't real dates are ignored.
  */
-export function dailyNoteDatesIn(config: VaultConfig, month: string): string[] {
+export function dailyNoteDates(config: VaultConfig): string[] {
   let names: string[];
   try {
     names = readdirSync(resolveInVault(config, "Daily"));
@@ -50,7 +50,7 @@ export function dailyNoteDatesIn(config: VaultConfig, month: string): string[] {
   const dates: string[] = [];
   for (const name of names) {
     const date = DAILY_FILE.exec(name)?.[1];
-    if (date === undefined || !isDateInMonth(date, month)) continue;
+    if (date === undefined) continue;
     try {
       dates.push(parseDateArg(date));
     } catch {
@@ -58,6 +58,11 @@ export function dailyNoteDatesIn(config: VaultConfig, month: string): string[] {
     }
   }
   return dates.sort();
+}
+
+/** The dates of the daily notes in a `YYYY-MM` month, oldest first. */
+export function dailyNoteDatesIn(config: VaultConfig, month: string): string[] {
+  return dailyNoteDates(config).filter((date) => isDateInMonth(date, month));
 }
 
 /** The future log: one note, `Future.md`, in the dibujo folder. */

@@ -1,7 +1,7 @@
 import { fingerprint, formatBullet } from "../bujo/bullet.js";
 import { addBlockId, applyLineEdits, setCheckbox, setScheduled } from "../bujo/edit.js";
 import { appendFutureEntries, newFutureTemplate } from "../bujo/future.js";
-import { addDays, journalDate, parseDateArg } from "../bujo/journal-date.js";
+import { addDays, gapDays, journalDate, latestBefore, parseDateArg } from "../bujo/journal-date.js";
 import { planMigration } from "../bujo/migrate.js";
 import {
   appendLogLines,
@@ -19,7 +19,7 @@ import { replaceIfUnchanged, type WriteHooks, writeNew } from "./atomic-write.js
 import { freshBlockId, randomBlockId, usedBlockIds } from "./block-id.js";
 import { assertSupported, readIfExists } from "./daily.js";
 import { loadFutureNote } from "./future.js";
-import { assertLinkSafeFolder, dailyNotePath, futureNotePath } from "./paths.js";
+import { assertLinkSafeFolder, dailyNoteDates, dailyNotePath, futureNotePath } from "./paths.js";
 import { pendingMonth } from "./pending-month.js";
 import {
   type CommitOptions,
@@ -410,13 +410,22 @@ export interface ReviewTask {
   text: string;
   signifiers: Signifier[];
   depth: number;
-  /** Days in a row this task has been migrated, ending with the move into yesterday. */
+  /** Days in a row this task has been migrated, ending with the move into the source day. */
   streak: number;
   /** The date of the earliest note in the streak, or null when the streak is 0. */
   since: string | null;
   flagged: boolean;
   /** Bullets that would move with the task, in note order. */
   children: ReviewChild[];
+}
+
+/** The day whose open tasks the review lists. */
+export interface ReviewSource {
+  date: string;
+  path: string;
+  isYesterday: boolean;
+  /** Days with no note between the source day and today. 0 when it is yesterday. */
+  gapDays: number;
 }
 
 export interface ReviewResult {
@@ -428,11 +437,14 @@ export interface ReviewResult {
   tasks: ReviewTask[];
   /** The past month, when it has daily notes and no monthly summary yet. Otherwise `null`. */
   pendingMonth: { month: string; path: string } | null;
+  /** The note the tasks come from, or `null` when there is no earlier note. */
+  source: ReviewSource | null;
 }
 
 /**
  * Lists the open tasks in yesterday's note that aren't moved along with an open
- * parent, with their migration streaks.
+ * parent, with their migration streaks. When yesterday has no note, it uses the most
+ * recent earlier note instead, and `source` says which.
  */
 export function reviewTasks(config: VaultConfig, today: string): ReviewResult {
   const yesterday = addDays(today, -1);
@@ -443,29 +455,55 @@ export function reviewTasks(config: VaultConfig, today: string): ReviewResult {
     path,
     flagAfterDays: config.migrationFlagDays,
   };
-  const content = readIfExists(path);
-  if (content === null) {
-    return { ...base, exists: false, tasks: [], pendingMonth: pendingMonth(config, today) };
+  const yesterdayContent = readIfExists(path);
+  const sourceDate =
+    yesterdayContent !== null ? yesterday : latestBefore(today, dailyNoteDates(config));
+  const sourcePath = sourceDate === null ? null : dailyNotePath(config, sourceDate);
+  const content =
+    sourceDate === yesterday
+      ? yesterdayContent
+      : sourcePath === null
+        ? null
+        : readIfExists(sourcePath);
+  if (sourceDate === null || sourcePath === null || content === null) {
+    return {
+      ...base,
+      exists: false,
+      tasks: [],
+      pendingMonth: pendingMonth(config, today),
+      source: null,
+    };
   }
   const parsed = parseDailyNote(content);
-  assertSupported(parsed, path);
+  assertSupported(parsed, sourcePath);
 
-  const cache = new Map<string, ParsedNote | null>([[yesterday, parsed]]);
+  const cache = new Map<string, ParsedNote | null>([[sourceDate, parsed]]);
   const loadNote = (date: string): ParsedNote | null => {
     if (!cache.has(date)) cache.set(date, loadQuietly(config, date));
     return cache.get(date) ?? null;
   };
 
-  const tasks = openTasksIn(parsed, yesterday, loadNote, config.migrationFlagDays);
-  const pending = pendingMonth(config, today);
+  const tasks = openTasksIn(parsed, sourceDate, loadNote, config.migrationFlagDays);
+  const source: ReviewSource = {
+    date: sourceDate,
+    path: sourcePath,
+    isYesterday: sourceDate === yesterday,
+    gapDays: gapDays(sourceDate, today),
+  };
 
-  return { ...base, exists: true, tasks, pendingMonth: pending };
+  return {
+    ...base,
+    exists: yesterdayContent !== null,
+    tasks,
+    pendingMonth: pendingMonth(config, today),
+    source,
+  };
 }
 
 /**
  * The open tasks in one parsed note that aren't moved along with an open parent, in
  * note order, with their migration streaks. `loadNote` loads the notes of other days
- * for the streaks. `reviewTasks` lists yesterday's with it, and `month show` lists a month's.
+ * for the streaks. `reviewTasks` lists the source day's with it, and `month show` lists a month's.
  */
 export function openTasksIn(
   parsed: ParsedNote,

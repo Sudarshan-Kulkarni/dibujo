@@ -84,7 +84,9 @@ Terms from `core-daily-log` (vault, daily note, bullet, task state, capture, ski
 4. THE streak SHALL end at the first task that has no link, whose link points to a day other than the previous calendar day, or whose link cannot be resolved (for example, because the user deleted the source line). A broken link SHALL never cause an error.
 5. WHEN a task's migration streak reaches the configured flag threshold (Requirement 7), THE command SHALL mark it as flagged.
 6. IF yesterday has no note or no open tasks, THEN THE command SHALL return an empty list and exit with code 0.
+   _Changed by `morning-review-fallback`: when yesterday has no note, the review uses the most recent earlier note._
 7. Open tasks from days before yesterday SHALL NOT be listed. They are left for the monthly migration spec.
+   _Changed by `morning-review-fallback`: when yesterday has no note, the review uses the most recent earlier note._
 8. Open child tasks SHALL be listed under their parent task, because they are migrated with it (Requirement 2.3).
 
 ### Requirement 5: Morning planning skill
@@ -132,6 +134,7 @@ Terms from `core-daily-log` (vault, daily note, bullet, task state, capture, ski
 ## Decisions
 
 1. **Yesterday** is the previous calendar day, not the most recent note (Requirement 4.1).
+   _Changed by `morning-review-fallback`: when yesterday has no note, the review uses the most recent earlier note._
 2. **Older open tasks** are not reviewed here. Tasks are migrated day by day, and a task migrated repeatedly is flagged (Requirement 4.5).
 3. **Migration links:** each migrated copy links back to the exact task it came from, and streaks are computed by following those links. This adds a little markup to each line, but streaks survive rewording and are cheap to compute (Requirements 2.7 and 4.3). The exact link syntax is chosen in the design.
 4. **Scheduled dates** use the Tasks plugin form `⏳ YYYY-MM-DD`. Surfacing them on their date belongs to the future log spec (Requirement 3).

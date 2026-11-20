@@ -112,6 +112,20 @@ export function daysBetween(from: string, to: string): number {
   return differenceInCalendarDays(atNoon(to), atNoon(from));
 }
 
+/** The latest date in `dates` that is before `today`, or null. Dates are `YYYY-MM-DD`, which sort as text. */
+export function latestBefore(today: string, dates: readonly string[]): string | null {
+  let best: string | null = null;
+  for (const date of dates) {
+    if (date < today && (best === null || date > best)) best = date;
+  }
+  return best;
+}
+
+/** Calendar days strictly between `source` and `today`. 0 when `source` is yesterday. */
+export function gapDays(source: string, today: string): number {
+  return daysBetween(source, today) - 1;
+}
+
 function atNoon(date: string): Date {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1, 12);

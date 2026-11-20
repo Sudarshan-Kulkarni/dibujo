@@ -1,3 +1,4 @@
+import { format, parseISO } from "date-fns";
 import { monthName } from "../bujo/journal-date.js";
 import { reviewTasks } from "../vault/tasks.js";
 import { humanBullet } from "./bullet-symbols.js";
@@ -14,7 +15,9 @@ interface TaskReviewOptions {
 export const registerTaskReview: Register = (task, ctx) => {
   task
     .command("review")
-    .description("List yesterday's open tasks, with how many days in a row each was migrated")
+    .description(
+      "List open tasks from yesterday, or from the last earlier note when yesterday has none, with how many days in a row each was migrated",
+    )
     .option("--date <YYYY-MM-DD>", "the day to treat as today (default: the current journal day)")
     .option("--json", "print the result as JSON")
     .action((options: TaskReviewOptions) => runTaskReview(ctx, options));
@@ -30,17 +33,24 @@ export function runTaskReview(ctx: Ctx, options: TaskReviewOptions): void {
       ]
     : [];
 
+  const { source } = review;
+  if (source === null) {
+    out.success(review, [`No note for ${review.yesterday}, and no earlier notes.`, ...pending]);
+    return;
+  }
+  const notice = source.isYesterday
+    ? []
+    : [
+        `No note for ${review.yesterday}. Showing open tasks from ${format(parseISO(source.date), "EEEE")} ${source.date} instead (${source.gapDays} ${source.gapDays === 1 ? "day" : "days"} with no notes in between).`,
+        "",
+      ];
+
   if (review.tasks.length === 0) {
-    out.success(review, [
-      review.exists
-        ? `No open tasks in ${review.yesterday}'s note.`
-        : `No note for ${review.yesterday} (${review.path}).`,
-      ...pending,
-    ]);
+    out.success(review, [...notice, `No open tasks in ${source.date}'s note.`, ...pending]);
     return;
   }
 
-  const lines = [`Open tasks from ${review.yesterday}:`, ""];
+  const lines = [...notice, `Open tasks from ${source.date}:`, ""];
   for (const t of review.tasks) {
     const streak = t.flagged
       ? `  (migrated ${t.streak} days in a row, since ${t.since})`

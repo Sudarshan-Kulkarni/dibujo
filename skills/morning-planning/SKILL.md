@@ -1,6 +1,6 @@
 ---
 name: morning-planning
-description: Run the user's Bullet Journal morning planning in their Obsidian vault. Walk through yesterday's open tasks one at a time (migrate, schedule with or without a date, cancel, complete, or leave open) to mirror their paper notebook, then go through the tasks that have come due in the future log (bring in, give another date, cancel, or leave), mention today's events, offer a look at the rest of the future log so the user can bring tasks into today, then capture a morning brain-dump as bullets in today's note. Offers the monthly migration when a new month starts and last month has no summary yet. Use when the user wants to plan their morning, start their day, do their morning ritual, migrate yesterday's tasks, or see which scheduled tasks are due.
+description: Run the user's Bullet Journal morning planning in their Obsidian vault. Walk through yesterday's open tasks (or those of the last earlier note when yesterday has none) one at a time (migrate, schedule with or without a date, cancel, complete, or leave open) to mirror their paper notebook, then go through the tasks that have come due in the future log (bring in, give another date, cancel, or leave), mention today's events, offer a look at the rest of the future log so the user can bring tasks into today, then capture a morning brain-dump as bullets in today's note. Offers the monthly migration when a new month starts and last month has no summary yet. Use when the user wants to plan their morning, start their day, do their morning ritual, migrate yesterday's tasks, or see which scheduled tasks are due.
 ---
 
 # Morning planning
@@ -26,14 +26,18 @@ The note format, including bullet types, task states, migration links, the futur
 
 Run `dibujo --version`. If the command isn't found, use `npx -y digi-bujo` in place of `dibujo` for every command below.
 
-### 2. Review yesterday
+### 2. Review yesterday (or the last earlier note)
 
 ```sh
 dibujo task review --json
 ```
 
-- `"ok": true`: `data.tasks` lists yesterday's open tasks. Each has a `ref`, `text`, `signifiers`, `streak`, `since`, `flagged`, and `children` (the bullets nested under it, which move with it). Keep `data.pendingMonth` for step 12: it is `null`, or `{ "month": "2026-10", "path": "..." }` when last month has daily notes and no monthly summary yet.
-- `data.tasks` is empty: say so in one line ("Nothing open from yesterday.") and go to step 4. Still keep `data.pendingMonth`.
+- `"ok": true`: `data.tasks` lists the open tasks of the source day, `data.source`. Each task has a `ref`, `text`, `signifiers`, `streak`, `since`, `flagged`, and `children` (the bullets nested under it, which move with it). Keep `data.source` and `data.pendingMonth`. `pendingMonth` is for step 12: it is `null`, or `{ "month": "2026-10", "path": "..." }` when last month has daily notes and no monthly summary yet.
+- `data.source` is the day the tasks come from. It is yesterday's note when that exists. When yesterday has no note, it is the most recent earlier note. It has `date`, `isYesterday`, and `gapDays` (days with no note in between).
+- `data.source.isYesterday` is `false`: before listing any task, tell the user: "There's no note for yesterday. These tasks are from <weekday> <date>, and there are no notes for the days in between." Then carry on with the normal flow. Don't ask the user to create the missing notes, and don't write anything for those days.
+- `data.source` is `null`: say "No earlier notes." and go to step 4. Still keep `data.pendingMonth`.
+- `data.tasks` is empty: say "Nothing open from <yesterday | weekday date>." (after the not-yesterday notice, when it applies) and go to step 4. Still keep `data.pendingMonth`.
+- From here on, name the source day in your wording ("from Friday"), not "yesterday", when it isn't yesterday.
 - `error.code` is `CONFIG_MISSING` or `VAULT_NOT_FOUND`: tell the user to run `dibujo init` (show `error.hint`), and stop.
 - Any other error: show `error.message` and `error.hint`, and stop.
 
@@ -51,7 +55,7 @@ Go through `data.tasks` **one at a time**. Show the task and its children in Bul
 | "done", "did it", "finished" | Complete | `dibujo task set <ref> completed --json` |
 | "leave", "skip", "not sure" | Leave open | none |
 
-- A scheduled date must be after yesterday. If the user gives today or a past date, ask again, and suggest migrating instead if they meant today.
+- A scheduled date must be after today. If the user gives today or a past date (including a day between the source day and today), ask again, and suggest migrating instead if they meant today.
 - **A "no" to the date question is a valid answer.** Schedule the task without a date. It goes into the future log undated and waits there until the user looks at the list (step 6). Don't ask again.
 - **Scheduling also writes the future log.** `dibujo task schedule` adds the task to the future log as well. A task with a date comes back in step 4 when its date arrives. Don't ask the user about the future log separately.
 - **Flagged tasks.** If `flagged` is `true`, mention it before asking, in a neutral way: "You've migrated this one {streak} days in a row, since {since}. Keep it, or let it go?" Then take their answer as one of the choices above. Don't recommend either.
@@ -145,10 +149,10 @@ Add `priority` only to the bullets the user names:
 
 ### 9. Confirm
 
-Show the whole plan in one message: yesterday's changes first, then the changes to the future log, then today's new bullets:
+Show the whole plan in one message: the source day's changes (yesterday's, or the earlier day's) first, then the changes to the future log, then today's new bullets:
 
 ```
-Yesterday (2026-11-09)
+Yesterday (2026-11-09)   <- or the source day, e.g. "Friday (2026-11-06)"
    > call the bank          → today
      > find card number     → today
    < renew passport         → 2026-12-01

@@ -1,8 +1,11 @@
+import fc from "fast-check";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   addDays,
   daysBetween,
+  gapDays,
   journalDate,
+  latestBefore,
   localTime,
   monthName,
   monthOf,
@@ -129,6 +132,42 @@ describe("daysBetween", () => {
     expect(daysBetween("2026-03-07", "2026-03-09")).toBe(2); // DST starts 03-08
     expect(daysBetween("2026-10-31", "2026-11-02")).toBe(2); // DST ends 11-01
     expect(daysBetween("2026-11-09", "2026-11-02")).toBe(-7);
+  });
+});
+
+describe("gapDays", () => {
+  it("counts the days with no note between the source and today", () => {
+    expect(gapDays("2026-11-19", "2026-11-20")).toBe(0);
+    expect(gapDays("2026-11-18", "2026-11-20")).toBe(1);
+    expect(gapDays("2026-10-30", "2026-11-02")).toBe(2); // month end
+    expect(gapDays("2026-12-30", "2027-01-02")).toBe(2); // year end
+    expect(gapDays("2028-02-28", "2028-03-01")).toBe(1); // leap day
+    expect(gapDays("2026-03-07", "2026-03-09")).toBe(1); // DST starts 03-08
+    expect(gapDays("2026-10-31", "2026-11-02")).toBe(1); // DST ends 11-01
+  });
+});
+
+describe("latestBefore", () => {
+  it("picks the latest date strictly before today", () => {
+    expect(latestBefore("2026-11-20", ["2026-11-18", "2026-11-10", "2026-10-31"])).toBe(
+      "2026-11-18",
+    );
+    expect(latestBefore("2027-01-02", ["2026-12-30", "2026-12-01"])).toBe("2026-12-30");
+    expect(latestBefore("2026-11-20", ["2026-11-20", "2026-11-25"])).toBeNull();
+    expect(latestBefore("2026-11-20", [])).toBeNull();
+  });
+
+  it("returns an element before today with nothing from the set between it and today", () => {
+    const date = fc
+      .date({ min: new Date("2020-01-01"), max: new Date("2030-12-31"), noInvalidDate: true })
+      .map((d) => d.toISOString().slice(0, 10));
+    fc.assert(
+      fc.property(date, fc.array(date), (today, dates) => {
+        const found = latestBefore(today, dates);
+        if (found === null) return dates.every((d) => d >= today);
+        return found < today && dates.includes(found) && !dates.some((d) => d > found && d < today);
+      }),
+    );
   });
 });
 
