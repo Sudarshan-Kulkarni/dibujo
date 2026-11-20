@@ -199,4 +199,63 @@ describe("dibujo task", () => {
       json: { ok: true, data: { exists: false, tasks: [], yesterday: "2026-11-09" } },
     });
   });
+
+  it("falls back to the last earlier note and says so, in JSON and in text", async () => {
+    const w = world();
+    await w.init();
+    w.write("2026-11-06", "- [ ] call the bank");
+    const review = await w.run("task", "review");
+    expect(review).toMatchObject({
+      code: 0,
+      json: {
+        data: {
+          exists: false,
+          yesterday: "2026-11-09",
+          source: { date: "2026-11-06", isYesterday: false, gapDays: 3 },
+        },
+      },
+    });
+    expect(review.json.data.tasks?.[0]?.text).toBe("call the bank");
+
+    const text = w.ctx();
+    expect(await runCli(["task", "review"], text, registers)).toBe(0);
+    expect(text.out()).toContain(
+      "No note for 2026-11-09. Showing open tasks from Friday 2026-11-06 instead (3 days with no notes in between).",
+    );
+    expect(text.out()).toContain("Open tasks from 2026-11-06:");
+  });
+
+  it("says '1 day' for a gap of one day", async () => {
+    const w = world();
+    await w.init();
+    w.write("2026-11-08", "- [ ] call the bank");
+    const text = w.ctx();
+    expect(await runCli(["task", "review"], text, registers)).toBe(0);
+    expect(text.out()).toContain("Sunday 2026-11-08 instead (1 day with no notes in between).");
+  });
+
+  it("says there are no earlier notes when none exist", async () => {
+    const w = world();
+    await w.init();
+    const review = await w.run("task", "review");
+    expect(review.json.data.source).toBeNull();
+    const text = w.ctx();
+    expect(await runCli(["task", "review"], text, registers)).toBe(0);
+    expect(text.out()).toContain("No note for 2026-11-09, and no earlier notes.");
+  });
+
+  it("prints no notice when yesterday has a note", async () => {
+    const w = world();
+    await w.init();
+    w.write("2026-11-09", "- [ ] call the bank");
+    const review = await w.run("task", "review");
+    expect(review.json.data.source).toMatchObject({
+      date: "2026-11-09",
+      isYesterday: true,
+      gapDays: 0,
+    });
+    const text = w.ctx();
+    expect(await runCli(["task", "review"], text, registers)).toBe(0);
+    expect(text.out()).not.toContain("Showing open tasks");
+  });
 });
